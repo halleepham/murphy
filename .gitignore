@@ -1,0 +1,22 @@
+# Data — too large for git; document the source in the README instead
+data/raw/
+data/processed/
+*.parquet
+*.csv
+!tests/fixtures/*.csv
+
+# Secrets
+.env
+
+# Private planning docs — local only, never committed
+docs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# AI context
+CLAUDE.md
