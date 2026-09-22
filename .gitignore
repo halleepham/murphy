@@ -20,3 +20,6 @@ venv/
 
 # AI context
 CLAUDE.md
+
+# Cached LLM parses -- avoids re-spending the free-tier daily quota
+.cache/

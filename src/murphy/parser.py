@@ -21,6 +21,7 @@ Run:  .venv/bin/python src/murphy/parser.py tests/fixtures/confirmation_syntheti
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 import time
@@ -36,12 +37,24 @@ from murphy.config import ROOT, load_env
 MODEL = "gemini-3.6-flash"
 PARQUET = ROOT / "data" / "processed" / "flights" / "**" / "*.parquet"
 
-# The free tier returns 503 when the model is busy and 429 when the per-minute
-# request quota is spent (5 requests/minute at the time of writing). Both are
-# temporary, so retry rather than failing the traveller's request outright.
-RETRIES = 3
-BACKOFF_SECONDS = 2
+# The free tier is unreliable in two distinct ways:
+#   503 -- the model is busy. Frequent, intermittent, and the identical request
+#          usually succeeds seconds later.
+#   429 -- the per-minute request quota is spent (5 requests/minute).
+# Neither is a reason to fail the traveller's request, so we retry hard, and if
+# one model stays unavailable we move to the next.
+FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.5-flash"]
+
+# The free tier allows 20 requests per day PER MODEL. That budget is small
+# enough that retrying aggressively is self-defeating -- a few retries across a
+# few models can spend the whole day's allowance on one confirmation. So: one
+# attempt per model, move on quickly, and cache every success to disk so the
+# same confirmation is never paid for twice.
+RETRIES_PER_MODEL = 1
+BACKOFF_SECONDS = 1.5
+REQUEST_TIMEOUT_MS = 30_000
 MAX_WAIT_SECONDS = 35
+CACHE_DIR = ROOT / ".cache" / "parses"
 
 
 class ParserUnavailable(RuntimeError):
@@ -87,14 +100,33 @@ class Itinerary(BaseModel):
     confirmation_code: str | None = Field(None, description="Booking reference, if stated")
 
 
+def _cache_path(text: str) -> Path:
+    digest = hashlib.sha256(text.strip().encode()).hexdigest()[:16]
+    return CACHE_DIR / f"{digest}.json"
+
+
+def _is_daily_quota(exc) -> bool:
+    """True when a 429 is the per-day allowance rather than the per-minute one."""
+    return "PerDay" in str(getattr(exc, "details", "")) or "PerDay" in str(exc)
+
+
 def _retry_delay(message: str, default: float = 30.0) -> float:
     """Pull the server's suggested retry delay out of a quota error message."""
     match = re.search(r"'retryDelay': '(\d+(?:\.\d+)?)s'", message)
     return float(match.group(1)) + 1 if match else default
 
 
-def parse(text: str, model: str = MODEL) -> Itinerary:
-    """Send the confirmation to Gemini and get back a validated Itinerary."""
+def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itinerary:
+    """Send the confirmation to Gemini and get back a validated Itinerary.
+
+    Successful parses are cached on disk by the hash of the input text, so
+    re-running the same confirmation costs no quota. Set use_cache=False to
+    force a fresh call.
+    """
+    cache_file = _cache_path(text)
+    if use_cache and cache_file.exists():
+        return Itinerary.model_validate_json(cache_file.read_text())
+
     key = load_env("GEMINI_API_KEY")
     if not key:
         raise SystemExit(
@@ -104,56 +136,78 @@ def parse(text: str, model: str = MODEL) -> Itinerary:
         )
 
     from google import genai
+    from google.genai import errors as genai_errors, types as genai_types
 
-    from google.genai import errors as genai_errors
+    # attempts=1 turns off the SDK's own backoff so a failure surfaces
+    # immediately and this function controls all the waiting.
+    client = genai.Client(
+        api_key=key,
+        http_options=genai_types.HttpOptions(
+            timeout=REQUEST_TIMEOUT_MS,
+            retry_options=genai_types.HttpRetryOptions(attempts=1),
+        ),
+    )
 
-    client = genai.Client(api_key=key)
+    models = [model] if model else list(FALLBACK_MODELS)
+    if model and model not in FALLBACK_MODELS:
+        models += [m for m in FALLBACK_MODELS if m != model]
+
     last_error = None
 
-    for attempt in range(RETRIES):
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=f"{INSTRUCTIONS}\n\nConfirmation:\n\n{text}",
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": Itinerary,
-                    "temperature": 0,
-                },
-            )
-        except genai_errors.ServerError as exc:
-            last_error = exc
-            if attempt < RETRIES - 1:
-                time.sleep(BACKOFF_SECONDS * (attempt + 1))
-            continue
-        except genai_errors.ClientError as exc:
-            # 429 means the free-tier quota is spent. The server tells us how
-            # long to wait; honour it if the wait is short enough to be worth it.
-            if exc.code == 429:
+    for candidate in models:
+        for attempt in range(RETRIES_PER_MODEL):
+            try:
+                response = client.models.generate_content(
+                    model=candidate,
+                    contents=f"{INSTRUCTIONS}\n\nConfirmation:\n\n{text}",
+                    config={
+                        "response_mime_type": "application/json",
+                        "response_schema": Itinerary,
+                        "temperature": 0,
+                    },
+                )
+            except genai_errors.ClientError as exc:
                 last_error = exc
-                wait = _retry_delay(str(exc))
-                if attempt < RETRIES - 1 and wait <= MAX_WAIT_SECONDS:
-                    time.sleep(wait)
-                    continue
+                if exc.code == 429:
+                    # Per-day allowance is gone for this model: waiting will not
+                    # help, so move straight to the next one.
+                    if _is_daily_quota(exc):
+                        break
+                    wait = _retry_delay(str(exc))
+                    if attempt < RETRIES_PER_MODEL - 1 and wait <= MAX_WAIT_SECONDS:
+                        time.sleep(wait)
+                        continue
+                    break          # quota spent on this model; try the next one
                 raise ParserUnavailable(
-                    f"The free-tier request quota is spent (5 requests per "
-                    f"minute). Wait about {wait:.0f} seconds and try again."
+                    f"The model rejected the request: {exc}"
                 ) from exc
-            raise ParserUnavailable(
-                f"The model rejected the request: {exc}"
-            ) from exc
+            except Exception as exc:                      # 503, 504, timeouts
+                last_error = exc
+                if attempt < RETRIES_PER_MODEL - 1:
+                    time.sleep(BACKOFF_SECONDS * (2 ** attempt))
+                continue
 
-        if response.parsed is None:
-            raise ParserUnavailable(
-                "The model did not return usable JSON. Nothing was parsed, and "
-                "no itinerary has been invented in its place."
-            )
-        return response.parsed
+            if response.parsed is None:
+                raise ParserUnavailable(
+                    "The model did not return usable JSON. Nothing was parsed, and "
+                    "no itinerary has been invented in its place."
+                )
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            cache_file.write_text(response.parsed.model_dump_json(indent=2))
+            return response.parsed
 
+    daily = last_error is not None and _is_daily_quota(last_error)
+    if daily:
+        raise ParserUnavailable(
+            "The Gemini free tier allows 20 requests per day per model, and "
+            "today's allowance is spent on all of them. Confirmations parsed "
+            "earlier today still work -- they are cached and cost nothing. "
+            "A fresh confirmation will need to wait for the quota to reset."
+        )
     raise ParserUnavailable(
-        f"Could not reach the model after {RETRIES} attempts. This is usually a "
-        f"temporary spike in demand on the free tier; try again in a moment. "
-        f"(last error: {last_error})"
+        f"Could not reach any model (tried {', '.join(models)}). The Gemini free "
+        f"tier is returning errors right now; this is on their side, not yours. "
+        f"Wait a moment and press Parse again.\n\n(last error: {last_error})"
     )
 
 
