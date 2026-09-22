@@ -1,2 +1,4 @@
 duckdb
 pyarrow
+google-genai
+pydantic

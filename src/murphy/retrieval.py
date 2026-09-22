@@ -71,8 +71,10 @@ class Result:
 def _ladder(q: Query) -> list[tuple[str, str, str]]:
     """The fallback ladder, in order. Each rung drops one more constraint.
 
-    Order comes from the project plan: widen the hour bin, drop carrier, drop
-    month, refuse.
+    Order: widen the hour bin, drop month, drop carrier, refuse. The project
+    plan specified carrier before month; that was corrected after it was found
+    to discard the traveler's own airline while a better-matched rung was still
+    available. See the March case in the test cases.
     """
     bin_lo, bin_hi = (q.sched_dep_hour // 2) * 2, (q.sched_dep_hour // 2) * 2 + 1
     wide_lo, wide_hi = q.sched_dep_hour - WIDE_HOURS, q.sched_dep_hour + WIDE_HOURS
@@ -94,10 +96,10 @@ def _ladder(q: Query) -> list[tuple[str, str, str]]:
             f"{WIDE_HOURS}h of {q.sched_dep_hour:02d}:00",
         ),
         (
-            "any carrier",
-            f"{route} AND month = {q.month} "
+            "any month",
+            f"{route} AND carrier = '{q.carrier}' "
             f"AND sched_dep_hour BETWEEN {wide_lo} AND {wide_hi}",
-            f"any carrier {q.origin}→{q.dest}, same month, departing within "
+            f"{q.carrier} {q.origin}→{q.dest}, any month, departing within "
             f"{WIDE_HOURS}h of {q.sched_dep_hour:02d}:00",
         ),
         (
