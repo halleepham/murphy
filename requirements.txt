@@ -2,3 +2,4 @@ duckdb
 pyarrow
 google-genai
 pydantic
+streamlit

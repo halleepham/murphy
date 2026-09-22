@@ -24,6 +24,7 @@ import argparse
 import re
 import sys
 import time
+from functools import lru_cache
 from datetime import date
 from pathlib import Path
 
@@ -160,25 +161,27 @@ def parse(text: str, model: str = MODEL) -> Itinerary:
 # Validation. The parse is a proposal; these checks decide whether to trust it.
 # --------------------------------------------------------------------------
 
-def _known(con) -> tuple[set[str], set[str]]:
-    airports = {r[0] for r in con.execute(
+@lru_cache(maxsize=1)
+def _known() -> tuple[frozenset[str], frozenset[str]]:
+    """Airport and carrier codes present in the data. Cached; the file is static."""
+    con = duckdb.connect()
+    airports = frozenset(r[0] for r in con.execute(
         f"SELECT DISTINCT origin FROM read_parquet('{PARQUET}', hive_partitioning=true)"
-    ).fetchall()}
-    carriers = {r[0] for r in con.execute(
+    ).fetchall())
+    carriers = frozenset(r[0] for r in con.execute(
         f"SELECT DISTINCT carrier FROM read_parquet('{PARQUET}', hive_partitioning=true)"
-    ).fetchall()}
+    ).fetchall())
     return airports, carriers
 
 
-def validate(itinerary: Itinerary, con: duckdb.DuckDBPyConnection | None = None) -> list[dict]:
+def validate(itinerary: Itinerary) -> list[dict]:
     """Return one entry per leg describing what is missing or unusable.
 
     Missing fields and unknown codes are reported separately: a null means the
     traveller has to supply it, an unknown code means the parse produced
     something the data cannot answer for.
     """
-    con = con or duckdb.connect()
-    airports, carriers = _known(con)
+    airports, carriers = _known()
     report = []
 
     for i, leg in enumerate(itinerary.legs):
