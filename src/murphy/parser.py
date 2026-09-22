@@ -23,15 +23,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import sys
-import time
-from functools import lru_cache
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 import duckdb
 from pydantic import BaseModel, Field
+
+# Allow running this file directly (python src/murphy/parser.py ...) as well as
+# importing it as part of the package.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from murphy.config import ROOT, load_env
 
@@ -40,18 +43,16 @@ from murphy.config import ROOT, load_env
 # tier is 20 requests per day PER MODEL, so it cannot carry normal use.
 #
 # Retrying hard is self-defeating against a daily allowance -- a few retries can
-# spend the whole budget on one confirmation -- so each model gets one attempt,
-# and every success is cached to disk by input hash.
+# spend the whole budget on one confirmation -- so each model gets a single
+# attempt and an unavailable one is abandoned for the next. Every success is
+# cached to disk by input hash, so no confirmation is ever paid for twice.
 
 GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
 GEMINI_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
 MODEL = GROQ_MODELS[0]
 
 PARQUET = ROOT / "data" / "processed" / "flights" / "**" / "*.parquet"
-RETRIES_PER_MODEL = 1
-BACKOFF_SECONDS = 1.5
 REQUEST_TIMEOUT_MS = 30_000
-MAX_WAIT_SECONDS = 35
 CACHE_DIR = ROOT / ".cache" / "parses"
 
 
@@ -106,12 +107,6 @@ def _cache_path(text: str) -> Path:
 def _is_daily_quota(exc) -> bool:
     """True when a 429 is the per-day allowance rather than the per-minute one."""
     return "PerDay" in str(getattr(exc, "details", "")) or "PerDay" in str(exc)
-
-
-def _retry_delay(message: str, default: float = 30.0) -> float:
-    """Pull the server's suggested retry delay out of a quota error message."""
-    match = re.search(r"'retryDelay': '(\d+(?:\.\d+)?)s'", message)
-    return float(match.group(1)) + 1 if match else default
 
 
 def _schema_hint() -> str:

@@ -4,6 +4,9 @@ data/processed/
 *.parquet
 *.csv
 !tests/fixtures/*.csv
+# A 300-row sample IS committed: it documents the schema and lets anyone
+# inspect the columns without the 1.6 GB download.
+!data/raw/sample_rows_2024.csv
 
 # Secrets
 .env

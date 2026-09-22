@@ -26,14 +26,28 @@ from murphy.parser import (                                           # noqa: E4
 from murphy.retrieval import COMFORTABLE, MINIMUM, Query, retrieve    # noqa: E402
 
 FIXTURES = ROOT / "tests" / "fixtures"
+
 HAS_KEY = bool(load_env("GROQ_API_KEY") or load_env("GEMINI_API_KEY"))
-needs_api = pytest.mark.skipif(not HAS_KEY, reason="no API key in .env; parser tests skipped")
+needs_api = pytest.mark.skipif(
+    not HAS_KEY,
+    reason="no API key in .env -- see README, parser tests skipped",
+)
+
+# The retrieval tests query the Parquet table, which is built from a 1.6 GB CSV
+# that is not in the repository. Without it they should say so, not fail with a
+# DuckDB error a reader has to decode.
+HAS_DATA = (ROOT / "data" / "processed" / "flights").exists()
+needs_data = pytest.mark.skipif(
+    not HAS_DATA,
+    reason="no Parquet table -- run src/murphy/build_parquet.py first",
+)
 
 
 # ---------------------------------------------------------------------------
 # 1-4. Retrieval: the four evidence bands
 # ---------------------------------------------------------------------------
 
+@needs_data
 def test_1_exact_match_is_confident():
     """A busy route in its own month answers from an exact match."""
     r = retrieve(Query("BOS", "ATL", "DL", 11, 6))
@@ -47,6 +61,7 @@ def test_1_exact_match_is_confident():
     assert all(e["origin"] == "BOS" and e["dest"] == "ATL" for e in r.evidence)
 
 
+@needs_data
 def test_2_small_sample_is_flagged():
     """Between 10 and 19 flights still answers, but says the sample is small."""
     r = retrieve(Query("MCI", "DEN", "WN", 11, 7))
@@ -56,6 +71,7 @@ def test_2_small_sample_is_flagged():
     assert "indicative" in r.message
 
 
+@needs_data
 def test_3_missing_month_widens_and_says_so():
     """March is absent from the source data, so the ladder must widen."""
     r = retrieve(Query("BOS", "ATL", "DL", 3, 6))
@@ -68,6 +84,7 @@ def test_3_missing_month_widens_and_says_so():
     assert "any carrier" not in r.match_description
 
 
+@needs_data
 def test_4_no_evidence_refuses_rather_than_guessing():
     """FAILURE CASE. A route with no service must not produce a range."""
     r = retrieve(Query("BOS", "ANC", "DL", 11, 6))
@@ -83,6 +100,7 @@ def test_4_no_evidence_refuses_rather_than_guessing():
 # 5. Confidence reflects match quality, not just sample size
 # ---------------------------------------------------------------------------
 
+@needs_data
 def test_5_large_but_loose_match_lowers_confidence():
     """A big sample of poorly matched flights must not read as high confidence."""
     loose = retrieve(Query("BOS", "HNL", "DL", 11, 6))
@@ -100,6 +118,7 @@ def test_5_large_but_loose_match_lowers_confidence():
 # 6. Weather is reported as evidence, and withheld when it would be noise
 # ---------------------------------------------------------------------------
 
+@needs_data
 def test_6_weather_split_only_when_both_sides_are_big_enough():
     r = retrieve(Query("BOS", "ATL", "DL", 11, 6))
     wx = r.weather
@@ -115,6 +134,7 @@ def test_6_weather_split_only_when_both_sides_are_big_enough():
 # 7-8. Validation: the parse is a proposal, not a fact
 # ---------------------------------------------------------------------------
 
+@needs_data
 def test_7_unknown_codes_are_reported_not_passed_through():
     """FAILURE CASE. Codes absent from the data are flagged, not queried."""
     leg = FlightLeg(carrier="ZZ", flight_number=1, origin="BOS", dest="QQQ",
@@ -126,6 +146,7 @@ def test_7_unknown_codes_are_reported_not_passed_through():
     assert any("QQQ" in p for p in problems["unusable"])
 
 
+@needs_data
 def test_8_incomplete_leg_cannot_reach_retrieval():
     """A leg missing a required field yields no query at all."""
     leg = FlightLeg(carrier="DL", flight_number=1422, origin=None, dest="ATL",
@@ -162,6 +183,7 @@ def test_9_multi_leg_confirmation_parses_correctly():
 
 
 @needs_api
+@needs_data
 def test_10_missing_values_are_null_never_guessed():
     """FAILURE CASE. An incomplete confirmation yields nulls, not inventions."""
     text = "UNITED AIRLINES\nTrip confirmation\n\nUA 328   Denver to Chicago\n   Depart 7:45 AM\n"
@@ -191,6 +213,7 @@ def test_11_text_with_no_flights_yields_no_itinerary():
 # ---------------------------------------------------------------------------
 
 @needs_api
+@needs_data
 def test_12_confirmation_to_range_end_to_end():
     """The whole slice: text in, evidence-backed range out, for every leg."""
     itinerary = parse((FIXTURES / "confirmation_synthetic.txt").read_text())

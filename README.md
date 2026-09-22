@@ -86,8 +86,7 @@ Useful on their own:
     --carrier DL --month 11 --hour 6 --json
 
 # Parse a confirmation from the command line
-PYTHONPATH=src .venv/bin/python src/murphy/parser.py \
-    tests/fixtures/confirmation_synthetic.txt
+.venv/bin/python src/murphy/parser.py tests/fixtures/confirmation_synthetic.txt
 ```
 
 ---
@@ -99,7 +98,9 @@ PYTHONPATH=src .venv/bin/python src/murphy/parser.py \
 Download `flight_with_weather_2024.csv` into `data/raw/`. It is 1.6 GB and is
 not committed.
 
-`data/raw/sample_rows_2024.csv` is a 300-row sample kept for quick checks.
+A 300-row sample is committed at `data/raw/sample_rows_2024.csv` so the schema
+can be inspected without the full download. It is far too small for retrieval —
+comparable-flight counts drawn from it would be meaningless.
 
 **After processing:** 6,284,734 rows, 305 airports, 15 carriers, stored as
 Parquet partitioned by origin — 81 MB, queried with DuckDB.
@@ -180,8 +181,12 @@ More screenshots in [`screenshots/`](screenshots/).
 
 Twelve cases, including four failure cases: a route with no evidence, a month
 absent from the data, unusable airline and airport codes, and text containing no
-flights at all. Tests 1–8 run offline; the parser tests skip cleanly without an
-API key, so the suite runs from a fresh clone.
+flights at all.
+
+The suite runs from a fresh clone without failing. Tests that query the flight
+table skip with a clear reason until `build_parquet.py` has been run, and the
+parser tests skip without an API key — so a missing prerequisite reads as
+`10 skipped`, naming what is absent, rather than as a wall of errors.
 
 Case-by-case reasoning — what each test feeds in, what the system does, and why
 that is correct — is in [`tests/RESULTS.md`](tests/RESULTS.md).

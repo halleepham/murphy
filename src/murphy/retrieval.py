@@ -286,14 +286,14 @@ def main():
 
     if not r.ok:
         print(f"REFUSED. {r.message}")
-        print(f"\nLadder: " + "  ".join(f"{t['rung']}={t['n']}" for t in r.ladder_trace))
+        print("\nLadder: " + "  ".join(f"{t['rung']}={t['n']}" for t in r.ladder_trace))
         return
 
     print(f"Arrival delay    p10 {r.p10:+d} min   p50 {r.p50:+d} min   p90 {r.p90:+d} min")
     print(f"Evidence         {r.n} flights  ({r.confidence})")
     print(f"Matched on       {r.match_description}")
     print(f"\n{r.message}")
-    print(f"\nLadder: " + "  ".join(f"{t['rung']}={t['n']}" for t in r.ladder_trace))
+    print("\nLadder: " + "  ".join(f"{t['rung']}={t['n']}" for t in r.ladder_trace))
     print(f"\nFirst {min(5, len(r.evidence))} of {r.n} comparable flights:")
     for e in r.evidence[:5]:
         print(f"  {e['flight_id']:<28} {e['sched_dep_local']}→{e['sched_arr_local']}  "

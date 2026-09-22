@@ -13,7 +13,7 @@ Run:  .venv/bin/streamlit run app/app.py
 """
 
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import streamlit as st
