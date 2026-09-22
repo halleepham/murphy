@@ -187,8 +187,13 @@ def parse_detailed(text: str, model: str | None = None,
     """
     cache_file = _cache_path(text)
     if use_cache and cache_file.exists():
-        cached = json.loads(cache_file.read_text())
-        return Itinerary.model_validate(cached["itinerary"]), cached["model"]
+        try:
+            cached = json.loads(cache_file.read_text())
+            return Itinerary.model_validate(cached["itinerary"]), cached["model"]
+        except (ValueError, KeyError, TypeError):
+            # Written by an older version, truncated, or otherwise unreadable.
+            # A bad cache entry must never break a parse -- drop it and call out.
+            cache_file.unlink(missing_ok=True)
 
     groq_key = load_env("GROQ_API_KEY")
     gemini_key = load_env("GEMINI_API_KEY")

@@ -37,6 +37,10 @@ FLOOR = 5          # below this, after the whole ladder, refuse
 # How far either side of the scheduled hour a "widened" match reaches.
 WIDE_HOURS = 3
 
+# Smallest wet/dry group worth reporting a comparison for. Below this the
+# split is noise and saying anything about it would be dishonest.
+MIN_WEATHER_GROUP = 3
+
 
 @dataclass
 class Query:
@@ -67,6 +71,7 @@ class Result:
     p50: int | None = None
     p90: int | None = None
     evidence: list = field(default_factory=list)
+    weather: dict = field(default_factory=dict)
     ladder_trace: list = field(default_factory=list)
     sql: str = ""
 
@@ -117,6 +122,39 @@ def _ladder(q: Query) -> list[tuple[str, str, str]]:
     ]
 
 
+def _weather_split(con, where: str) -> dict:
+    """Split the retrieved flights by whether it was raining or snowing at origin.
+
+    Purely descriptive. These are conditions recorded on the day each historical
+    flight flew; the app has no weather forecast for the traveller's own flight,
+    and nothing here claims weather caused anything.
+    """
+    row = con.execute(f"""
+        SELECT
+          count(*) FILTER (WHERE origin_precip_mm > 0)  AS wet,
+          count(*) FILTER (WHERE origin_precip_mm = 0)  AS dry,
+          count(*) FILTER (WHERE origin_precip_mm IS NULL) AS unknown,
+          quantile_cont(arr_delay_min, 0.50) FILTER (WHERE origin_precip_mm > 0) AS wet_p50,
+          quantile_cont(arr_delay_min, 0.90) FILTER (WHERE origin_precip_mm > 0) AS wet_p90,
+          quantile_cont(arr_delay_min, 0.50) FILTER (WHERE origin_precip_mm = 0) AS dry_p50,
+          quantile_cont(arr_delay_min, 0.90) FILTER (WHERE origin_precip_mm = 0) AS dry_p90
+        FROM read_parquet('{PARQUET}', hive_partitioning=true)
+        WHERE {where}
+    """).fetchone()
+
+    wet, dry, unknown = row[0], row[1], row[2]
+    summary = {"wet": wet, "dry": dry, "unknown": unknown, "comparable": False}
+
+    # Only report the split when both sides have enough flights to mean anything.
+    if wet >= MIN_WEATHER_GROUP and dry >= MIN_WEATHER_GROUP:
+        summary.update({
+            "comparable": True,
+            "wet_p50": round(row[3]), "wet_p90": round(row[4]),
+            "dry_p50": round(row[5]), "dry_p90": round(row[6]),
+        })
+    return summary
+
+
 def retrieve(q: Query, con: duckdb.DuckDBPyConnection | None = None,
              evidence_limit: int = 50) -> Result:
     """Walk the ladder until the evidence is thick enough, then compute the range."""
@@ -165,14 +203,18 @@ WHERE {where}
 
     evidence = con.execute(f"""
         SELECT flight_id, flight_date, carrier, flight_number, origin, dest,
-               sched_dep_local, sched_arr_local, arr_delay_min
+               sched_dep_local, sched_arr_local, arr_delay_min,
+               origin_precip_mm, origin_wind_kph
         FROM read_parquet('{PARQUET}', hive_partitioning=true)
         WHERE {where}
         ORDER BY flight_date
         LIMIT {evidence_limit}
     """).fetchall()
     cols = ["flight_id", "flight_date", "carrier", "flight_number", "origin", "dest",
-            "sched_dep_local", "sched_arr_local", "arr_delay_min"]
+            "sched_dep_local", "sched_arr_local", "arr_delay_min",
+            "origin_precip_mm", "origin_wind_kph"]
+
+    weather = _weather_split(con, where)
 
     # Two things decide how much to trust a range, and sample size is only one.
     # Rungs 0 and 1 keep the traveller's carrier and month, so a big N there is
@@ -212,7 +254,7 @@ WHERE {where}
         match_description=description, n=n, confidence=confidence, message=message,
         p10=round(p10), p50=round(p50), p90=round(p90),
         evidence=[dict(zip(cols, row)) for row in evidence],
-        ladder_trace=trace, sql=sql,
+        weather=weather, ladder_trace=trace, sql=sql,
     )
 
 

@@ -9,9 +9,14 @@ local times with no timezone, and no midnight rollover -- so the only sound
 representation is the scheduled clock time as a display string plus ARR_DELAY
 in minutes as the label.
 
+Does carry the observed weather columns, which describe conditions on the day
+each historical flight actually flew. They are shown as evidence, never used to
+forecast: the app has no weather forecast for the traveller's own flight.
+
 Run:  .venv/bin/python src/murphy/build_parquet.py
 """
 
+import shutil
 from pathlib import Path
 
 import duckdb
@@ -51,6 +56,17 @@ SELECT
 
     CAST(CRS_ELAPSED_TIME AS INT)                             AS sched_duration_min,
 
+    -- Observed weather on the day of the flight. Carried as a property of the
+    -- evidence so the traveller can see which comparable flights ran in bad
+    -- conditions -- not as a forecast input, and not as a causal claim.
+    -- Units inferred from value ranges: Celsius, millimetres, km/h.
+    round(O_TEMP, 1)                                          AS origin_temp_c,
+    round(O_PRCP, 1)                                          AS origin_precip_mm,
+    round(O_WSPD, 1)                                          AS origin_wind_kph,
+    round(D_TEMP, 1)                                          AS dest_temp_c,
+    round(D_PRCP, 1)                                          AS dest_precip_mm,
+    round(D_WSPD, 1)                                          AS dest_wind_kph,
+
     -- Outcomes. Labels and evidence, never model inputs.
     CAST(ARR_DELAY AS INT)                                    AS arr_delay_min,
     CAST(DEP_DELAY AS INT)                                    AS dep_delay_min
@@ -72,6 +88,12 @@ def main():
     print(f"Reading  {n_raw:,} rows")
     print(f"Dropping {n_drop:,} unexplained rows ({100.0 * n_drop / n_raw:.4f}%)")
     print(f"Writing  {OUT}/ partitioned by origin ...")
+
+    # Clear the target first. OVERWRITE_OR_IGNORE leaves files from a previous
+    # build in place and writes new ones beside them, so a schema change would
+    # silently produce a directory holding two incompatible layouts.
+    if OUT.exists():
+        shutil.rmtree(OUT)
 
     con.execute(f"""
         COPY ({BUILD}) TO '{OUT}'

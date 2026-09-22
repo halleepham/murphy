@@ -186,6 +186,12 @@ if st.session_state.get("legs"):
         else:
             st.error(result.message)
 
+        wx = result.weather
+        if wx.get("wet"):
+            st.caption(f"{wx['wet']} of these {result.n} flights had rain or snow at "
+                       f"{leg.origin} on the day they flew. See the evidence below for "
+                       f"how they compared.")
+
         st.caption("This range covers flights that operated. Cancelled and diverted "
                    "flights are not in the dataset, so Murphy cannot speak to "
                    "cancellation risk.")
@@ -200,11 +206,36 @@ if st.session_state.get("legs"):
                     "flight_date": "Date",
                     "arr_delay_min": st.column_config.NumberColumn(
                         "Arrived (min)", format="%+d"),
+                    "origin_precip_mm": st.column_config.NumberColumn(
+                        "Rain at origin (mm)", format="%.1f"),
+                    "origin_wind_kph": st.column_config.NumberColumn(
+                        "Wind (km/h)", format="%.0f"),
                 },
             )
             if result.n > len(result.evidence):
                 st.caption(f"Showing the first {len(result.evidence)} of {result.n}. "
                            f"The range is computed over all {result.n}.")
+
+            if wx.get("comparable"):
+                st.markdown("**Weather on the day**")
+                st.table({
+                    "Conditions at origin": ["Rain or snow", "Dry"],
+                    "Flights": [wx["wet"], wx["dry"]],
+                    "Typical arrival": [f"{wx['wet_p50']:+d} min", f"{wx['dry_p50']:+d} min"],
+                    "Worst 1 in 10": [f"{wx['wet_p90']:+d} min", f"{wx['dry_p90']:+d} min"],
+                })
+                st.caption(
+                    "Observed conditions on the days these flights flew, shown so you "
+                    "can see what is inside the range. Murphy has no weather forecast "
+                    "for your own flight, and this is a description of these rows, not "
+                    "a claim that weather caused the difference — season, time of day "
+                    "and traffic all move with it."
+                )
+            elif wx.get("wet") or wx.get("dry"):
+                st.caption(
+                    f"Weather at origin: {wx['wet']} of these flights had rain or snow, "
+                    f"{wx['dry']} were dry. Too few on one side to compare them."
+                )
 
         with st.expander("Where this number came from"):
             st.markdown(f"""
