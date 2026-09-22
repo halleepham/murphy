@@ -245,7 +245,12 @@ WHERE {where}
                    f"There were too few flights matching this one closely, so the "
                    f"comparison is broader than ideal. Treat the range as indicative.")
 
-    if confidence == "thin":
+    # Say WHY confidence is reduced. A loose match already explains itself above;
+    # a tight match with few rows needs its own sentence, or the banner turns
+    # amber with nothing on screen accounting for it.
+    if confidence == "limited" and quality != "loose":
+        message += " That is a small sample, so treat the range as indicative."
+    elif confidence == "thin":
         message += (f" Only {n} flights were found even after widening, so this rests "
                     f"on very little evidence.")
 

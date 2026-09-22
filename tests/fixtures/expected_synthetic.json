@@ -1,0 +1,25 @@
+{
+  "legs": [
+    {
+      "carrier": "DL",
+      "flight_number": 1422,
+      "origin": "BOS",
+      "dest": "ATL",
+      "departure_date": "2026-11-18",
+      "scheduled_departure_local": "06:00",
+      "scheduled_arrival_local": "09:07",
+      "operated_by": null
+    },
+    {
+      "carrier": "DL",
+      "flight_number": 3391,
+      "origin": "ATL",
+      "dest": "MCI",
+      "departure_date": "2026-11-18",
+      "scheduled_departure_local": "10:12",
+      "scheduled_arrival_local": "11:34",
+      "operated_by": "Endeavor Air dba Delta Connection"
+    }
+  ],
+  "confirmation_code": "HQ4KZP"
+}
