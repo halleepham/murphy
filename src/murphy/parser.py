@@ -43,7 +43,7 @@ from murphy.config import ROOT, load_env
 # spend the whole budget on one confirmation -- so each model gets one attempt,
 # and every success is cached to disk by input hash.
 
-GROQ_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
 GEMINI_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
 MODEL = GROQ_MODELS[0]
 
@@ -168,7 +168,18 @@ def _call_gemini(text: str, model: str, key: str) -> Itinerary:
 
 
 def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itinerary:
-    """Turn confirmation text into a validated Itinerary.
+    """Turn confirmation text into a validated Itinerary. See parse_detailed."""
+    itinerary, _ = parse_detailed(text, model=model, use_cache=use_cache)
+    return itinerary
+
+
+def parse_detailed(text: str, model: str | None = None,
+                   use_cache: bool = True) -> tuple[Itinerary, str]:
+    """Parse, and report which provider/model actually produced the result.
+
+    The model that ran is not always the one configured first -- a provider can
+    be down or out of quota -- and the app shows it as provenance, so it has to
+    be the truth rather than the default.
 
     Tries Groq, then Gemini. Successful parses are cached on disk by the hash of
     the input text, so re-running the same confirmation costs no quota at all.
@@ -176,7 +187,8 @@ def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itiner
     """
     cache_file = _cache_path(text)
     if use_cache and cache_file.exists():
-        return Itinerary.model_validate_json(cache_file.read_text())
+        cached = json.loads(cache_file.read_text())
+        return Itinerary.model_validate(cached["itinerary"]), cached["model"]
 
     groq_key = load_env("GROQ_API_KEY")
     gemini_key = load_env("GEMINI_API_KEY")
@@ -210,9 +222,11 @@ def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itiner
                 daily_quota_hit = True
             continue
 
+        used = f"{provider}/{candidate}"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(itinerary.model_dump_json(indent=2))
-        return itinerary
+        cache_file.write_text(json.dumps(
+            {"model": used, "itinerary": itinerary.model_dump()}, indent=2, default=str))
+        return itinerary, used
 
     if daily_quota_hit:
         raise ParserUnavailable(

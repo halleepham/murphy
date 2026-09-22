@@ -21,7 +21,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from murphy.parser import (  # noqa: E402
-    ParserUnavailable, parse, to_query_args, validate, Itinerary, FlightLeg, MODEL,
+    ParserUnavailable, parse_detailed, to_query_args, validate, Itinerary, FlightLeg,
 )
 from murphy.retrieval import COMFORTABLE, MINIMUM, Query, retrieve  # noqa: E402
 
@@ -87,12 +87,13 @@ if st.button("Parse confirmation", type="primary", disabled=not raw_text.strip()
     reset()
     with st.spinner("Reading the confirmation…"):
         try:
-            itinerary = parse(raw_text)
+            itinerary, used_model = parse_detailed(raw_text)
         except ParserUnavailable as exc:
             st.session_state["parse_error"] = str(exc)
         else:
             st.session_state["legs"] = [leg.model_dump() for leg in itinerary.legs]
             st.session_state["confirmation_code"] = itinerary.confirmation_code
+            st.session_state["used_model"] = used_model
 
 if err := st.session_state.get("parse_error"):
     st.error(f"Could not read this confirmation.\n\n{err}")
@@ -224,7 +225,8 @@ interpolation.
 """)
             st.code(result.sql, language="sql")
             st.caption(
-                f"Parsing by {MODEL}, which reads the confirmation text only. Every "
+                f"Parsed by {st.session_state.get('used_model', 'the language model')}, "
+                f"which reads the confirmation text only. Every "
                 f"number above is computed by SQL over the rows listed — the model "
                 f"never produces a figure. Known data limits: March 2024 is absent "
                 f"from the source file, and the source's timestamp columns are "
