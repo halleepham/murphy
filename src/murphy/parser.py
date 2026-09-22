@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import sys
 import time
@@ -34,22 +35,19 @@ from pydantic import BaseModel, Field
 
 from murphy.config import ROOT, load_env
 
-MODEL = "gemini-3.6-flash"
+# Two providers, tried in order. Groq is the working path: its free tier allows
+# thousands of requests a day. Gemini stays as an automatic backup, but its free
+# tier is 20 requests per day PER MODEL, so it cannot carry normal use.
+#
+# Retrying hard is self-defeating against a daily allowance -- a few retries can
+# spend the whole budget on one confirmation -- so each model gets one attempt,
+# and every success is cached to disk by input hash.
+
+GROQ_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+GEMINI_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
+MODEL = GROQ_MODELS[0]
+
 PARQUET = ROOT / "data" / "processed" / "flights" / "**" / "*.parquet"
-
-# The free tier is unreliable in two distinct ways:
-#   503 -- the model is busy. Frequent, intermittent, and the identical request
-#          usually succeeds seconds later.
-#   429 -- the per-minute request quota is spent (5 requests/minute).
-# Neither is a reason to fail the traveller's request, so we retry hard, and if
-# one model stays unavailable we move to the next.
-FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.5-flash"]
-
-# The free tier allows 20 requests per day PER MODEL. That budget is small
-# enough that retrying aggressively is self-defeating -- a few retries across a
-# few models can spend the whole day's allowance on one confirmation. So: one
-# attempt per model, move on quickly, and cache every success to disk so the
-# same confirmation is never paid for twice.
 RETRIES_PER_MODEL = 1
 BACKOFF_SECONDS = 1.5
 REQUEST_TIMEOUT_MS = 30_000
@@ -116,30 +114,35 @@ def _retry_delay(message: str, default: float = 30.0) -> float:
     return float(match.group(1)) + 1 if match else default
 
 
-def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itinerary:
-    """Send the confirmation to Gemini and get back a validated Itinerary.
+def _schema_hint() -> str:
+    """The JSON shape we want, spelled out for providers without schema mode."""
+    return json.dumps(Itinerary.model_json_schema(), indent=2)
 
-    Successful parses are cached on disk by the hash of the input text, so
-    re-running the same confirmation costs no quota. Set use_cache=False to
-    force a fresh call.
-    """
-    cache_file = _cache_path(text)
-    if use_cache and cache_file.exists():
-        return Itinerary.model_validate_json(cache_file.read_text())
 
-    key = load_env("GEMINI_API_KEY")
-    if not key:
-        raise SystemExit(
-            "No GEMINI_API_KEY found in .env\n"
-            "Get one at https://aistudio.google.com -> Get API key, then add:\n"
-            "  GEMINI_API_KEY=your-key-here"
-        )
+def _call_groq(text: str, model: str, key: str) -> Itinerary:
+    """One Groq completion. Raises on transport or quota problems."""
+    from groq import Groq
 
+    client = Groq(api_key=key, timeout=REQUEST_TIMEOUT_MS / 1000, max_retries=0)
+    completion = client.chat.completions.create(
+        model=model,
+        temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system",
+             "content": f"{INSTRUCTIONS}\n\nReturn JSON matching this schema "
+                        f"exactly:\n{_schema_hint()}"},
+            {"role": "user", "content": f"Confirmation:\n\n{text}"},
+        ],
+    )
+    return Itinerary.model_validate_json(completion.choices[0].message.content)
+
+
+def _call_gemini(text: str, model: str, key: str) -> Itinerary:
+    """One Gemini completion. Raises on transport or quota problems."""
     from google import genai
-    from google.genai import errors as genai_errors, types as genai_types
+    from google.genai import types as genai_types
 
-    # attempts=1 turns off the SDK's own backoff so a failure surfaces
-    # immediately and this function controls all the waiting.
     client = genai.Client(
         api_key=key,
         http_options=genai_types.HttpOptions(
@@ -147,67 +150,80 @@ def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itiner
             retry_options=genai_types.HttpRetryOptions(attempts=1),
         ),
     )
-
-    models = [model] if model else list(FALLBACK_MODELS)
-    if model and model not in FALLBACK_MODELS:
-        models += [m for m in FALLBACK_MODELS if m != model]
-
-    last_error = None
-
-    for candidate in models:
-        for attempt in range(RETRIES_PER_MODEL):
-            try:
-                response = client.models.generate_content(
-                    model=candidate,
-                    contents=f"{INSTRUCTIONS}\n\nConfirmation:\n\n{text}",
-                    config={
-                        "response_mime_type": "application/json",
-                        "response_schema": Itinerary,
-                        "temperature": 0,
-                    },
-                )
-            except genai_errors.ClientError as exc:
-                last_error = exc
-                if exc.code == 429:
-                    # Per-day allowance is gone for this model: waiting will not
-                    # help, so move straight to the next one.
-                    if _is_daily_quota(exc):
-                        break
-                    wait = _retry_delay(str(exc))
-                    if attempt < RETRIES_PER_MODEL - 1 and wait <= MAX_WAIT_SECONDS:
-                        time.sleep(wait)
-                        continue
-                    break          # quota spent on this model; try the next one
-                raise ParserUnavailable(
-                    f"The model rejected the request: {exc}"
-                ) from exc
-            except Exception as exc:                      # 503, 504, timeouts
-                last_error = exc
-                if attempt < RETRIES_PER_MODEL - 1:
-                    time.sleep(BACKOFF_SECONDS * (2 ** attempt))
-                continue
-
-            if response.parsed is None:
-                raise ParserUnavailable(
-                    "The model did not return usable JSON. Nothing was parsed, and "
-                    "no itinerary has been invented in its place."
-                )
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-            cache_file.write_text(response.parsed.model_dump_json(indent=2))
-            return response.parsed
-
-    daily = last_error is not None and _is_daily_quota(last_error)
-    if daily:
+    response = client.models.generate_content(
+        model=model,
+        contents=f"{INSTRUCTIONS}\n\nConfirmation:\n\n{text}",
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": Itinerary,
+            "temperature": 0,
+        },
+    )
+    if response.parsed is None:
         raise ParserUnavailable(
-            "The Gemini free tier allows 20 requests per day per model, and "
-            "today's allowance is spent on all of them. Confirmations parsed "
-            "earlier today still work -- they are cached and cost nothing. "
-            "A fresh confirmation will need to wait for the quota to reset."
+            "The model did not return usable JSON. Nothing was parsed, and no "
+            "itinerary has been invented in its place."
+        )
+    return response.parsed
+
+
+def parse(text: str, model: str | None = None, use_cache: bool = True) -> Itinerary:
+    """Turn confirmation text into a validated Itinerary.
+
+    Tries Groq, then Gemini. Successful parses are cached on disk by the hash of
+    the input text, so re-running the same confirmation costs no quota at all.
+    Set use_cache=False to force a fresh call.
+    """
+    cache_file = _cache_path(text)
+    if use_cache and cache_file.exists():
+        return Itinerary.model_validate_json(cache_file.read_text())
+
+    groq_key = load_env("GROQ_API_KEY")
+    gemini_key = load_env("GEMINI_API_KEY")
+    if not groq_key and not gemini_key:
+        raise SystemExit(
+            "No API key found in .env\n"
+            "Get a free Groq key at https://console.groq.com -> API Keys, then add:\n"
+            "  GROQ_API_KEY=your-key-here"
+        )
+
+    attempts = []
+    if groq_key:
+        chosen = [model] if model and model in GROQ_MODELS else GROQ_MODELS
+        attempts += [("groq", m, groq_key) for m in chosen]
+    if gemini_key:
+        chosen = [model] if model and model in GEMINI_MODELS else GEMINI_MODELS
+        attempts += [("gemini", m, gemini_key) for m in chosen]
+
+    callers = {"groq": _call_groq, "gemini": _call_gemini}
+    last_error = None
+    daily_quota_hit = False
+
+    for provider, candidate, key in attempts:
+        try:
+            itinerary = callers[provider](text, candidate, key)
+        except ParserUnavailable:
+            raise
+        except Exception as exc:
+            last_error = f"{provider}/{candidate}: {exc}"
+            if _is_daily_quota(exc):
+                daily_quota_hit = True
+            continue
+
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(itinerary.model_dump_json(indent=2))
+        return itinerary
+
+    if daily_quota_hit:
+        raise ParserUnavailable(
+            "The daily request allowance is spent on every configured model. "
+            "Confirmations parsed earlier still work -- they are cached and cost "
+            "nothing. A new confirmation will have to wait for the quota to reset."
         )
     raise ParserUnavailable(
-        f"Could not reach any model (tried {', '.join(models)}). The Gemini free "
-        f"tier is returning errors right now; this is on their side, not yours. "
-        f"Wait a moment and press Parse again.\n\n(last error: {last_error})"
+        f"Could not reach any model. Tried: "
+        f"{', '.join(f'{p}/{m}' for p, m, _ in attempts)}.\n\n"
+        f"Last error: {last_error}"
     )
 
 
