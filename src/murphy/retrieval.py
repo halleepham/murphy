@@ -24,6 +24,11 @@ import duckdb
 ROOT = Path(__file__).resolve().parents[2]
 PARQUET = ROOT / "data" / "processed" / "flights" / "**" / "*.parquet"
 
+# The SQL is shown to the traveller as provenance, so it uses a repo-relative
+# path: an absolute one leaks the developer's home directory into screenshots
+# and tells the reader nothing useful.
+PARQUET_DISPLAY = "data/processed/flights/**/*.parquet"
+
 # How many comparable flights we need before we are willing to answer.
 COMFORTABLE = 20   # answer plainly
 MINIMUM = 10       # answer, but say the evidence is limited
@@ -53,6 +58,7 @@ class Result:
     query: dict
     rung: str                      # which step of the ladder answered
     rung_index: int
+    match_quality: str             # "exact" | "widened" | "loose"
     match_description: str         # plain English, for the traveler
     n: int
     confidence: str                # "ok" | "limited" | "thin" | "refused"
@@ -135,7 +141,8 @@ def retrieve(q: Query, con: duckdb.DuckDBPyConnection | None = None,
         if n < FLOOR:
             return Result(
                 ok=False, query=asdict(q), rung=name, rung_index=i,
-                match_description=description, n=n, confidence="refused",
+                match_quality="loose", match_description=description,
+                n=n, confidence="refused",
                 message=(
                     f"Only {n} comparable flights after widening the match as far as it "
                     f"goes. That is not enough to quote a range, so Murphy will not "
@@ -146,14 +153,15 @@ def retrieve(q: Query, con: duckdb.DuckDBPyConnection | None = None,
         chosen = (i, name, where, description, n)
 
     i, name, where, description, n = chosen
-    sql = f"""
+    query_sql = f"""
 SELECT quantile_cont(arr_delay_min, 0.10) AS p10,
        quantile_cont(arr_delay_min, 0.50) AS p50,
        quantile_cont(arr_delay_min, 0.90) AS p90
 FROM read_parquet('{PARQUET}', hive_partitioning=true)
 WHERE {where}
 """.strip()
-    p10, p50, p90 = con.execute(sql).fetchone()
+    sql = query_sql.replace(str(PARQUET), PARQUET_DISPLAY)
+    p10, p50, p90 = con.execute(query_sql).fetchone()
 
     evidence = con.execute(f"""
         SELECT flight_id, flight_date, carrier, flight_number, origin, dest,
@@ -166,23 +174,41 @@ WHERE {where}
     cols = ["flight_id", "flight_date", "carrier", "flight_number", "origin", "dest",
             "sched_dep_local", "sched_arr_local", "arr_delay_min"]
 
+    # Two things decide how much to trust a range, and sample size is only one.
+    # Rungs 0 and 1 keep the traveller's carrier and month, so a big N there is
+    # genuinely strong evidence. Rungs 2 and 3 have given up the carrier or the
+    # month, so the rows are plentiful but no longer describe this flight very
+    # well -- a large loosely-matched sample is weaker than a small tight one,
+    # and the app must not present them alike.
+    quality = "exact" if i == 0 else "widened" if i == 1 else "loose"
+
     if n >= COMFORTABLE:
         confidence = "ok"
-        message = f"Based on {n} comparable flights."
     elif n >= MINIMUM:
         confidence = "limited"
-        message = (f"Based on {n} comparable flights. That is a small sample, so treat "
-                   f"the range as indicative.")
     else:
         confidence = "thin"
-        message = (f"Only {n} comparable flights even after widening the match. The "
-                   f"range is shown, but it rests on very little evidence.")
 
-    if i > 0:
-        message += f" The exact match was too thin, so it was widened to: {description}."
+    if quality == "loose" and confidence == "ok":
+        confidence = "limited"
+
+    if quality == "exact":
+        message = f"Based on {n} flights matching this route, airline, month and departure hour."
+    elif quality == "widened":
+        message = (f"Based on {n} flights on this route with {q.carrier} in the same "
+                   f"month, departing within {WIDE_HOURS} hours of this one. The exact "
+                   f"hour band was too thin on its own.")
+    else:
+        message = (f"Based on {n} flights, but the match is loose: {description}. "
+                   f"There were too few flights matching this one closely, so the "
+                   f"comparison is broader than ideal. Treat the range as indicative.")
+
+    if confidence == "thin":
+        message += (f" Only {n} flights were found even after widening, so this rests "
+                    f"on very little evidence.")
 
     return Result(
-        ok=True, query=asdict(q), rung=name, rung_index=i,
+        ok=True, query=asdict(q), rung=name, rung_index=i, match_quality=quality,
         match_description=description, n=n, confidence=confidence, message=message,
         p10=round(p10), p50=round(p50), p90=round(p90),
         evidence=[dict(zip(cols, row)) for row in evidence],

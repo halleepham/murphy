@@ -111,11 +111,14 @@ if st.session_state.get("legs"):
     st.caption(
         (f"Confirmation {code}. " if code else "")
         + "Anything the parser could not find is blank — it is never guessed. "
-          "Correct any field and the forecast below updates."
+          "Edit any field and press Enter to update the forecast below."
     )
 
     for i, leg in enumerate(st.session_state["legs"]):
         st.markdown(f"**Flight {i + 1}**")
+        if leg.get("operated_by"):
+            st.caption(f"Operated by {leg['operated_by']} — the forecast uses the "
+                       f"marketing carrier shown below.")
         for row_start in (0, 4):
             row = EDITABLE[row_start:row_start + 4]
             cols = st.columns(4)
@@ -127,9 +130,6 @@ if st.session_state.get("legs"):
                     key=f"leg{i}_{field}",
                     placeholder=placeholder,
                 ).strip() or None
-        if leg.get("operated_by"):
-            st.caption(f"Operated by {leg['operated_by']} — the forecast uses the "
-                       f"marketing carrier shown above.")
 
 # ---------------------------------------------------------- 3. forecast
 
@@ -213,6 +213,10 @@ after cleaning, 305 airports, 15 carriers.
 
 **Matched on** — {result.match_description}
 
+**Match quality** — {result.match_quality} (a loose match means the carrier or
+month had to be dropped to find enough flights, which lowers confidence however
+many rows come back)
+
 **Comparable flights found** — {result.n}
 
 **Fallback ladder** — {' · '.join(f"{t['rung']} = {t['n']}" for t in result.ladder_trace)}
@@ -222,6 +226,11 @@ without caveat)
 **How the range was computed** — empirical 10th, 50th and 90th percentiles of
 observed arrival delay across those rows. No model, no smoothing, no
 interpolation.
+
+**About the date** — the evidence is 2024 flights, whatever year you are
+flying. Matching uses the month and departure hour, not the calendar year, so a
+November 2026 flight is compared against November 2024 flights on the same
+route.
 """)
             st.code(result.sql, language="sql")
             st.caption(
