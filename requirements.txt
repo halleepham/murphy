@@ -1,0 +1,7 @@
+duckdb
+pyarrow
+google-genai
+groq
+pydantic
+streamlit
+pytest

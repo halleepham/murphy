@@ -1,0 +1,35 @@
+DELTA AIR LINES
+Your trip confirmation
+
+Confirmation #: HQ4KZP
+Ticket: 006 2847193052
+Passenger: SAMPLE/TRAVELER MS
+
+----------------------------------------------------------
+DEPART  Tue, 18 Nov 2026
+----------------------------------------------------------
+
+DL 1422    Boston (BOS) to Atlanta (ATL)
+           Depart  6:00 AM   Terminal A
+           Arrive  9:07 AM   Terminal S
+           Seat 24C  ·  Main Cabin (T)
+           Boeing 757-200
+
+           Connection in Atlanta — 1h 05m
+
+DL 3391    Atlanta (ATL) to Kansas City (MCI)
+           Depart  10:12 AM  Terminal N
+           Arrive  11:34 AM
+           Seat 18A  ·  Main Cabin (T)
+           Operated by Endeavor Air dba Delta Connection
+           Canadair Regional Jet 900
+
+----------------------------------------------------------
+Total trip time: 6h 34m  ·  1 stop
+Checked bags: 1 included
+
+Check in starting 24 hours before departure at delta.com
+or in the Fly Delta app.
+
+Baggage fees, change policies and our Contract of Carriage
+are available at delta.com/legal.

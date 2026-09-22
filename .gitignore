@@ -1,0 +1,28 @@
+# Data — too large for git; document the source in the README instead
+data/raw/
+data/processed/
+*.parquet
+*.csv
+!tests/fixtures/*.csv
+# A 300-row sample IS committed: it documents the schema and lets anyone
+# inspect the columns without the 1.6 GB download.
+!data/raw/sample_rows_2024.csv
+
+# Secrets
+.env
+
+# Private planning docs — local only, never committed
+docs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# AI context
+CLAUDE.md
+
+# Cached LLM parses -- avoids re-spending the free-tier daily quota
+.cache/
