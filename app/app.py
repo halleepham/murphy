@@ -52,7 +52,10 @@ def cached_routes(origin: str, dest: str, month: int, hour: int,
                   carrier: str | None, hub: str | None):
     """Planning scores dozens of legs, so cache it against the trip's identity."""
     booked = (carrier, hub) if carrier else None
-    return plan_routes(origin, dest, month, hour, k=5,
+    # k=None returns every distinct candidate. The app slices for display, which
+    # keeps "your route ranks 14th of 15" true under whichever ordering the
+    # traveller picks rather than only the default one.
+    return plan_routes(origin, dest, month, hour, k=None,
                        travellers_route=booked, evidence_limit=8)
 
 
@@ -343,10 +346,33 @@ if st.session_state.get("legs"):
                 )
             else:
                 routes = sorted(routes, key=SORTS[order])
-                for rank, route in enumerate(routes, 1):
-                    mine = " · **your route**" if route.is_travellers_route else ""
+                for position, route in enumerate(routes, 1):
+                    route._position = position
+
+                shown = routes[:5]
+                mine = next((r for r in routes if r.is_travellers_route), None)
+                trailing = mine if mine is not None and mine not in shown else None
+
+                if mine is not None:
+                    place, total = mine._position, len(routes)
+                    if place == 1:
+                        st.success(f"**Your route is the best of {total} on "
+                                   f"{order.lower()}.** Nothing here beats it.")
+                    elif place <= 3:
+                        st.info(f"**Your route ranks {place} of {total} on "
+                                f"{order.lower()}.** The options above it are close.")
+                    else:
+                        st.warning(f"**Your route ranks {place} of {total} on "
+                                   f"{order.lower()}.** The routes below did better on "
+                                   f"the evidence available.")
+
+                for route in shown + ([trailing] if trailing else []):
+                    if trailing is not None and route is trailing:
+                        st.divider()
+                        st.caption("Your own route, for comparison:")
+                    tag_mine = " · **your route**" if route.is_travellers_route else ""
                     tags = f" · {', '.join(route.labels)}" if route.labels else ""
-                    st.markdown(f"**{rank}. {route.describe()}**{mine}{tags}")
+                    st.markdown(f"**{route._position}. {route.describe()}**{tag_mine}{tags}")
 
                     c1, c2, c3 = st.columns(3)
                     c1.metric("Typically", hhmm(route.typical_total_min))
@@ -363,7 +389,8 @@ if st.session_state.get("legs"):
                             f"comparable inbound flights arrived too late to make it."
                         )
 
-                    with st.expander(f"Evidence behind {route.describe()}"):
+                    with st.expander(f"Evidence behind {route.describe()} "
+                                     f"(option {route._position})"):
                         for leg in route.legs:
                             st.markdown(
                                 f"**{leg.carrier} {leg.origin}→{leg.dest}** "

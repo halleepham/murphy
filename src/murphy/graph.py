@@ -79,6 +79,8 @@ class Route:
     connection_sample: int | None   # how many flights that share was drawn from
     labels: list[str] = field(default_factory=list)
     is_travellers_route: bool = False
+    rank: int | None = None          # position among all candidates, most reliable first
+    n_candidates: int | None = None  # how many distinct itineraries were considered
 
     # Delay is measured against each itinerary's own schedule, so it cannot be
     # compared across routes: a two-stop trip "arriving 20 minutes early" can
@@ -177,7 +179,7 @@ def _connection_risk(con, leg: Leg, month: int, slack_min: int) -> tuple[float, 
 
 
 def plan_routes(origin: str, dest: str, month: int, hour: int,
-                k: int = 5, con: duckdb.DuckDBPyConnection | None = None,
+                k: int | None = 5, con: duckdb.DuckDBPyConnection | None = None,
                 travellers_route: tuple[str, str | None] | None = None,
                 evidence_limit: int = 0) -> list[Route]:
     """Enumerate direct and one-stop itineraries, score them, return the best k.
@@ -272,16 +274,33 @@ def plan_routes(origin: str, dest: str, month: int, hour: int,
     # --- diversity. The feedback is explicit that top-k must not be k near
     # duplicates, so keep only the best itinerary for each (hub, carriers)
     # combination: two United nonstops an hour apart are one option, not two.
+    # The traveller's own route is never deduplicated away -- it is the thing
+    # every other route is being compared against.
     seen, diverse = set(), []
     for route in sorted(routes, key=_reliability_key):
         key = (route.hub, route.carriers)
-        if key in seen:
+        if key in seen and not route.is_travellers_route:
             continue
         seen.add(key)
         diverse.append(route)
 
     _label(diverse)
-    return sorted(diverse, key=_reliability_key)[:k]
+    ordered = sorted(diverse, key=_reliability_key)
+    for i, route in enumerate(ordered, 1):
+        route.rank, route.n_candidates = i, len(ordered)
+
+    if k is None:
+        return ordered
+
+    # Always return the traveller's own route, even when it does not place.
+    # Telling them "your route ranks 7th of 12" is the point of the feature;
+    # silently omitting it would answer a question they did not ask.
+    top = ordered[:k]
+    if not any(r.is_travellers_route for r in top):
+        mine = next((r for r in ordered if r.is_travellers_route), None)
+        if mine is not None:
+            top.append(mine)
+    return top
 
 
 # Minutes of trip time a traveller should be willing to trade to avoid a 100%
