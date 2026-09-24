@@ -65,15 +65,31 @@ python3 -m venv .venv
 # One free API key, from https://console.groq.com -> API Keys
 cp .env.example .env        # then paste your key into GROQ_API_KEY
 
-# Build the queryable table from the raw CSV (about a minute)
-.venv/bin/python src/murphy/build_parquet.py
-
-# Run the app
+# Run it. The flight table is already in the repository.
 .venv/bin/streamlit run app/app.py
 ```
 
 The app opens at `http://localhost:8501`. Click **Start from a sample
 confirmation** to try it without digging out your own booking.
+
+### Deploying it
+
+The application runs on Streamlit Community Cloud without modification.
+
+1. Push the repository to GitHub, including `data/processed/flights/` — the app
+   queries it directly and there is nothing to build at start-up.
+2. At [share.streamlit.io](https://share.streamlit.io), create an app pointing at
+   this repository with `app/app.py` as the entry point.
+3. Under **Advanced settings → Secrets**, add:
+   ```toml
+   GROQ_API_KEY = "your-key-here"
+   ```
+   Secrets are stored server side and never reach the browser. `src/murphy/config.py`
+   reads the process environment, then Streamlit secrets, then `.env`, so the same
+   code runs locally and deployed with no changes.
+
+Anyone who has the URL can trigger a parse against that key's quota, so treat it
+as revocable rather than permanent.
 
 Useful on their own:
 
@@ -85,6 +101,13 @@ Useful on their own:
 .venv/bin/python src/murphy/retrieval.py --origin BOS --dest ATL \
     --carrier DL --month 11 --hour 6 --json
 
+# Plan routes between two airports, with the traveller's own route ranked
+.venv/bin/python src/murphy/graph.py --origin BOS --dest MCI \
+    --month 11 --hour 6 --booked-carrier DL --via ATL
+
+# Compare risk-aware ranking against ranking by scheduled time
+.venv/bin/python src/murphy/evaluate.py
+
 # Parse a confirmation from the command line
 .venv/bin/python src/murphy/parser.py tests/fixtures/confirmation_synthetic.txt
 ```
@@ -95,8 +118,13 @@ Useful on their own:
 
 **Source:** [MFDD multi-modal flight delay dataset](https://www.kaggle.com/datasets/flnny123/mfddmulti-modal-flight-delay-dataset)
 (Kaggle), 2024 file — BTS on-time performance records with weather joined.
-Download `flight_with_weather_2024.csv` into `data/raw/`. It is 1.6 GB and is
-not committed.
+
+**The processed table is committed**, so you do not need the source file to run
+this. `data/processed/flights/` holds 6,284,734 rows as eleven Parquet files of
+about 8 MB each, partitioned by month.
+
+To rebuild it from scratch, download `flight_with_weather_2024.csv` (1.7 GB) into
+`data/raw/` and run `src/murphy/build_parquet.py`.
 
 A 300-row sample is committed at `data/raw/sample_rows_2024.csv` so the schema
 can be inspected without the full download. It is far too small for retrieval —

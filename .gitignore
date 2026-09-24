@@ -1,9 +1,10 @@
-# Data — too large for git; document the source in the README instead
+# Data. The raw 1.7 GB download stays out; the processed table goes in, because
+# committing it is what lets the app deploy and lets anyone clone and run this
+# without the download. Eleven files, ~8 MB each.
 data/raw/
-data/processed/
-*.parquet
 *.csv
 !tests/fixtures/*.csv
+!data/processed/flights/**/*.parquet
 # A 300-row sample IS committed: it documents the schema and lets anyone
 # inspect the columns without the 1.6 GB download.
 !data/raw/sample_rows_2024.csv
