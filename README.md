@@ -6,6 +6,8 @@ Murphy turns a pasted booking confirmation into an arrival-delay *range* built
 from real historical flights — and shows you exactly which flights it used. When
 the evidence is too thin, it refuses to forecast rather than guessing.
 
+**Try it: [https://murphy-challenge-2.streamlit.app/](https://murphy-challenge-2.streamlit.app/)**
+
 Course project for CS 5542 (Big Data Analytics & Applications), Fall 2026.
 This repository is the Challenge 2 Human–AI Co-Design slice: the first working
 vertical slice of the end-user application.
@@ -74,7 +76,8 @@ confirmation** to try it without digging out your own booking.
 
 ### Deploying it
 
-The application runs on Streamlit Community Cloud without modification.
+Deployed at **[https://murphy-challenge-2.streamlit.app/](https://murphy-challenge-2.streamlit.app/)**, from this repository, on Streamlit Community
+Cloud without modification.
 
 1. Push the repository to GitHub, including `data/processed/flights/` — the app
    queries it directly and there is nothing to build at start-up.
