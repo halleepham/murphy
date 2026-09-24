@@ -13,7 +13,7 @@ Run:  .venv/bin/streamlit run app/app.py
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import streamlit as st
@@ -24,6 +24,7 @@ from murphy.parser import (  # noqa: E402
     ParserUnavailable, parse_detailed, to_query_args, validate, Itinerary, FlightLeg,
 )
 from murphy.retrieval import COMFORTABLE, MINIMUM, Query, retrieve  # noqa: E402
+from murphy.graph import MIN_CONNECTION_MIN, SORTS, plan_routes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -44,6 +45,19 @@ EDITABLE = [
 def reset():
     for key in ("legs", "confirmation_code", "parse_error"):
         st.session_state.pop(key, None)
+
+
+@st.cache_data(show_spinner=False)
+def cached_routes(origin: str, dest: str, month: int, hour: int,
+                  carrier: str | None, hub: str | None):
+    """Planning scores dozens of legs, so cache it against the trip's identity."""
+    booked = (carrier, hub) if carrier else None
+    return plan_routes(origin, dest, month, hour, k=5,
+                       travellers_route=booked, evidence_limit=8)
+
+
+def hhmm(minutes: int) -> str:
+    return f"{minutes // 60}h{minutes % 60:02d}m"
 
 
 def landing_window(scheduled_arrival: str | None, p10: int, p90: int) -> str | None:
@@ -272,3 +286,110 @@ route.
                 f"from the source file, and the source's timestamp columns are "
                 f"unusable for arithmetic, so all figures are in delay-minutes."
             )
+
+
+# ------------------------------------------------- 4. alternative routes
+
+if st.session_state.get("legs"):
+    complete = []
+    for leg_dict in st.session_state["legs"]:
+        clean = dict(leg_dict)
+        if clean.get("flight_number"):
+            try:
+                clean["flight_number"] = int(clean["flight_number"])
+            except ValueError:
+                clean["flight_number"] = None
+        leg = FlightLeg(**clean)
+        if to_query_args(leg) is not None:
+            complete.append(leg)
+
+    if complete:
+        first, last = complete[0], complete[-1]
+        trip_origin, trip_dest = first.origin, last.dest
+        booked_hub = first.dest if len(complete) > 1 else None
+
+        st.divider()
+        st.subheader("Could you have done better?")
+        st.caption(
+            f"Other ways to get from **{trip_origin}** to **{trip_dest}** around the same "
+            f"time, built from flights that actually operated in this month. Your own "
+            f"route is marked. Connections assume a {MIN_CONNECTION_MIN}-minute minimum "
+            f"transfer."
+        )
+
+        order = st.radio(
+            "Rank by", list(SORTS), horizontal=True,
+            help="The same routes, ordered by what matters to you. Reliability counts the "
+                 "worst-case journey time and the share of inbound flights that arrived "
+                 "too late to connect.",
+        )
+
+        if trip_origin == trip_dest:
+            st.info("Origin and destination are the same — nothing to compare.")
+        else:
+            with st.spinner("Searching the flight network…"):
+                routes = cached_routes(
+                    trip_origin, trip_dest,
+                    date.fromisoformat(first.departure_date).month,
+                    int(first.scheduled_departure_local.split(":")[0]),
+                    first.carrier, booked_hub,
+                )
+
+            if not routes:
+                st.error(
+                    f"**No alternative found with enough evidence to rank.** Murphy could "
+                    f"not build a route from {trip_origin} to {trip_dest} that it can "
+                    f"stand behind, so it is not offering one."
+                )
+            else:
+                routes = sorted(routes, key=SORTS[order])
+                for rank, route in enumerate(routes, 1):
+                    mine = " · **your route**" if route.is_travellers_route else ""
+                    tags = f" · {', '.join(route.labels)}" if route.labels else ""
+                    st.markdown(f"**{rank}. {route.describe()}**{mine}{tags}")
+
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Typically", hhmm(route.typical_total_min))
+                    c2.metric("1 in 10 worse than", hhmm(route.tail_total_min))
+                    if route.connection_risk is not None:
+                        c3.metric("Connection missed", f"{route.connection_risk:.0%}")
+                    else:
+                        c3.metric("Stops", "Nonstop")
+
+                    if route.connection_risk is not None:
+                        st.caption(
+                            f"{route.layover_min} min in {route.hub}. "
+                            f"{route.connection_risk:.0%} of {route.connection_sample} "
+                            f"comparable inbound flights arrived too late to make it."
+                        )
+
+                    with st.expander(f"Evidence behind {route.describe()}"):
+                        for leg in route.legs:
+                            st.markdown(
+                                f"**{leg.carrier} {leg.origin}→{leg.dest}** "
+                                f"{leg.dep_local}–{leg.arr_local} · "
+                                f"p50 {leg.p50:+d} min, p90 {leg.p90:+d} min · "
+                                f"{leg.evidence_n} comparable flights ({leg.confidence})"
+                            )
+                            if leg.evidence:
+                                st.dataframe(
+                                    leg.evidence, use_container_width=True,
+                                    hide_index=True,
+                                    column_config={
+                                        "flight_id": "Record ID",
+                                        "flight_date": "Date",
+                                        "arr_delay_min": st.column_config.NumberColumn(
+                                            "Arrived (min)", format="%+d"),
+                                        "origin_precip_mm": st.column_config.NumberColumn(
+                                            "Rain (mm)", format="%.1f"),
+                                        "origin_wind_kph": st.column_config.NumberColumn(
+                                            "Wind (km/h)", format="%.0f"),
+                                    },
+                                )
+                        st.caption(
+                            "These itineraries are built by pairing a real arrival with a "
+                            "real departure under the transfer rule. They are feasible "
+                            "connections, not fares an airline sells. Cancelled and "
+                            "diverted flights are absent from the data, so every route is "
+                            "conditional on its flights operating."
+                        )

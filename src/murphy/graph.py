@@ -64,6 +64,7 @@ class Leg:
     evidence_n: int | None = None
     confidence: str | None = None
     match_quality: str | None = None
+    evidence: list = field(default_factory=list)
 
 
 @dataclass
@@ -177,7 +178,8 @@ def _connection_risk(con, leg: Leg, month: int, slack_min: int) -> tuple[float, 
 
 def plan_routes(origin: str, dest: str, month: int, hour: int,
                 k: int = 5, con: duckdb.DuckDBPyConnection | None = None,
-                travellers_route: tuple[str, str | None] | None = None) -> list[Route]:
+                travellers_route: tuple[str, str | None] | None = None,
+                evidence_limit: int = 0) -> list[Route]:
     """Enumerate direct and one-stop itineraries, score them, return the best k.
 
     `travellers_route` identifies the itinerary they already booked, as
@@ -231,7 +233,7 @@ def plan_routes(origin: str, dest: str, month: int, hour: int,
         scored, usable = [], True
         for leg in legs:
             result = retrieve(Query(leg.origin, leg.dest, leg.carrier, month, leg.dep_hour),
-                              con=con, evidence_limit=0)
+                              con=con, evidence_limit=evidence_limit)
             if not result.ok or result.n < MINIMUM:
                 usable = False
                 break
@@ -239,6 +241,7 @@ def plan_routes(origin: str, dest: str, month: int, hour: int,
             leg.evidence_n = result.n
             leg.confidence = result.confidence
             leg.match_quality = result.match_quality
+            leg.evidence = result.evidence
             scored.append(leg)
         if not usable:
             continue
@@ -295,6 +298,13 @@ def _reliability_key(route: Route):
 
 def _fastest_key(route: Route):
     return route.typical_total_min
+
+
+SORTS = {
+    "Most reliable": _reliability_key,
+    "Fastest": _fastest_key,
+    "Fewest stops": lambda r: (r.stops, _reliability_key(r)),
+}
 
 
 def _label(routes: list[Route]) -> None:
