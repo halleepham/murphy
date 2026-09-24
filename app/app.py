@@ -31,6 +31,13 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 st.set_page_config(page_title="Murphy", page_icon="🛫", layout="wide")
 
+# The sidebar holds everything the traveller controls, including the parsed
+# fields, so it needs more than Streamlit's default width.
+st.markdown(
+    "<style>[data-testid='stSidebar']{min-width:420px;max-width:420px;}</style>",
+    unsafe_allow_html=True,
+)
+
 EDITABLE = [
     ("carrier", "Airline", "DL"),
     ("flight_number", "Flight no.", "1422"),
@@ -130,6 +137,30 @@ with st.sidebar:
         st.success(f"{len(st.session_state['legs'])} flight(s) found"
                    + (f" · {code}" if code else ""))
 
+        st.divider()
+        st.subheader("Check what was read")
+        st.caption(
+            "Blank means the parser could not find it — it is never guessed. "
+            "Edit anything and press Enter; the results update."
+        )
+        for i, leg in enumerate(st.session_state["legs"]):
+            label = (f"Flight {i + 1} · {leg.get('carrier') or '??'} "
+                     f"{leg.get('flight_number') or '??'} · "
+                     f"{leg.get('origin') or '???'}→{leg.get('dest') or '???'}")
+            with st.expander(label, expanded=(i == 0)):
+                if leg.get("operated_by"):
+                    st.caption(f"Operated by {leg['operated_by']} — the forecast "
+                               f"uses the marketing carrier below.")
+                for row_start in (0, 2, 4, 6):
+                    row = EDITABLE[row_start:row_start + 2]
+                    cols = st.columns(len(row))
+                    for col, (field, lbl, placeholder) in zip(cols, row):
+                        value = leg.get(field)
+                        leg[field] = col.text_input(
+                            lbl, value="" if value is None else str(value),
+                            key=f"leg{i}_{field}", placeholder=placeholder,
+                        ).strip() or None
+
     st.divider()
     st.caption(
         "Every number comes from SQL over real 2024 flight records. The language "
@@ -143,11 +174,11 @@ if "legs" not in st.session_state:
     st.header("What this does")
     a, b, c = st.columns(3)
     with a:
-        st.subheader("1 · Check the details")
+        st.subheader("1 · Paste and check")
         st.write(
-            "An AI reads your confirmation into structured fields. Anything it "
-            "cannot find is left blank rather than guessed, and you can correct "
-            "any of it."
+            "An AI reads your confirmation into structured fields, on the left. "
+            "Anything it cannot find is left blank rather than guessed, and you "
+            "can correct any of it at any time."
         )
     with b:
         st.subheader("2 · Will I land on time?")
@@ -183,32 +214,11 @@ if not st.session_state["legs"]:
 
 # ============================================================ result tabs
 
-tab_check, tab_forecast, tab_routes = st.tabs(
-    ["1 · Check the details", "2 · Will I land on time?", "3 · Better routes"]
+tab_forecast, tab_routes = st.tabs(
+    ["Will I land on time?", "Better routes"]
 )
 
-# ---------------------------------------------------------- 1. check details
-
-with tab_check:
-    st.caption(
-        "Anything the parser could not find is blank — it is never guessed. "
-        "Edit any field and press Enter; the other tabs update."
-    )
-    for i, leg in enumerate(st.session_state["legs"]):
-        st.markdown(f"**Flight {i + 1}**")
-        if leg.get("operated_by"):
-            st.caption(f"Operated by {leg['operated_by']} — the forecast uses the "
-                       f"marketing carrier shown below.")
-        for row_start in (0, 4):
-            cols = st.columns(4)
-            for col, (field, label, placeholder) in zip(cols, EDITABLE[row_start:row_start + 4]):
-                value = leg.get(field)
-                leg[field] = col.text_input(
-                    label, value="" if value is None else str(value),
-                    key=f"leg{i}_{field}", placeholder=placeholder,
-                ).strip() or None
-
-# ------------------------------------------------------------- 2. forecast
+# ------------------------------------------------------------- 1. forecast
 
 with tab_forecast:
     for leg_dict in st.session_state["legs"]:
@@ -220,7 +230,7 @@ with tab_forecast:
         if checks["missing"]:
             st.info("Still needed before this leg can be forecast: **"
                     + ", ".join(f.replace("_", " ") for f in checks["missing"])
-                    + "** — add it in *Check the details*.")
+                    + "** — fill it in on the left.")
             continue
         if checks["unusable"]:
             for problem in checks["unusable"]:
@@ -329,7 +339,7 @@ with tab_routes:
                 if to_query_args(leg) is not None]
 
     if not complete:
-        st.info("Fill in the missing flight details first, in *Check the details*.")
+        st.info("Fill in the missing flight details on the left first.")
     else:
         first, last = complete[0], complete[-1]
         trip_origin, trip_dest = first.origin, last.dest
