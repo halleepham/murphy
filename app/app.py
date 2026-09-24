@@ -7,7 +7,7 @@ The Challenge 2 vertical slice, end to end:
       -> traveller reviews and corrects the parsed fields
       -> SQL retrieval finds comparable historical flights
       -> empirical p10/p50/p90 over those flights, with the evidence shown
-      -> traveller corrects something and re-runs
+      -> alternative routes, with the traveller's own route ranked among them
 
 Run:  .venv/bin/streamlit run app/app.py
 """
@@ -29,7 +29,7 @@ from murphy.graph import MIN_CONNECTION_MIN, SORTS, plan_routes  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures"
 
-st.set_page_config(page_title="Murphy", page_icon="🛫", layout="centered")
+st.set_page_config(page_title="Murphy", page_icon="🛫", layout="wide")
 
 EDITABLE = [
     ("carrier", "Airline", "DL"),
@@ -48,8 +48,7 @@ def reset():
 
 
 @st.cache_data(show_spinner=False)
-def cached_routes(origin: str, dest: str, month: int, hour: int,
-                  carrier: str | None, hub: str | None):
+def cached_routes(origin, dest, month, hour, carrier, hub):
     """Planning scores dozens of legs, so cache it against the trip's identity."""
     booked = (carrier, hub) if carrier else None
     # k=None returns every distinct candidate. The app slices for display, which
@@ -63,12 +62,12 @@ def hhmm(minutes: int) -> str:
     return f"{minutes // 60}h{minutes % 60:02d}m"
 
 
-def landing_window(scheduled_arrival: str | None, p10: int, p90: int) -> str | None:
+def landing_window(scheduled_arrival, p10, p90):
     """Turn a delay range into clock times, using the traveller's own schedule.
 
-    This is the only place a timestamp is constructed. It is built from the
-    scheduled arrival the traveller gave us plus a delay offset in minutes --
-    never from the dataset's broken timestamp columns.
+    The only place a timestamp is constructed. Built from the scheduled arrival
+    the traveller gave us plus a delay offset in minutes -- never from the
+    dataset's broken timestamp columns.
     """
     if not scheduled_arrival:
         return None
@@ -76,109 +75,160 @@ def landing_window(scheduled_arrival: str | None, p10: int, p90: int) -> str | N
         base = datetime.strptime(scheduled_arrival, "%H:%M")
     except ValueError:
         return None
-    early = (base + timedelta(minutes=p10)).strftime("%H:%M")
-    late = (base + timedelta(minutes=p90)).strftime("%H:%M")
-    return f"{early} – {late}"
+    return (f"{(base + timedelta(minutes=p10)).strftime('%H:%M')} – "
+            f"{(base + timedelta(minutes=p90)).strftime('%H:%M')}")
 
 
-# ---------------------------------------------------------------- 1. input
+def clean_leg(leg_dict) -> FlightLeg:
+    clean = dict(leg_dict)
+    if clean.get("flight_number"):
+        try:
+            clean["flight_number"] = int(clean["flight_number"])
+        except ValueError:
+            clean["flight_number"] = None
+    return FlightLeg(**clean)
 
-st.title("🛫 Murphy")
-st.caption("Paste a booking confirmation. Get an arrival range built from real "
-           "historical flights — and see exactly which ones.")
 
-with st.expander("Start from a sample confirmation", expanded=False):
-    st.caption("Useful for trying the app without digging out your own booking.")
-    if st.button("Load the sample Delta itinerary"):
+# ============================================================ input sidebar
+
+with st.sidebar:
+    st.title("🛫 Murphy")
+    st.caption("Will I land on time?")
+    st.markdown(
+        "Paste a booking confirmation. Murphy finds real flights like yours and "
+        "shows what actually happened to them."
+    )
+    st.divider()
+
+    if st.button("Use a sample itinerary", use_container_width=True):
         st.session_state["raw_text"] = (FIXTURES / "confirmation_synthetic.txt").read_text()
         reset()
 
-raw_text = st.text_area(
-    "Booking confirmation",
-    key="raw_text",
-    height=200,
-    placeholder="Paste the whole confirmation email here…",
-)
-
-if st.button("Parse confirmation", type="primary", disabled=not raw_text.strip()):
-    reset()
-    with st.spinner("Reading the confirmation…"):
-        try:
-            itinerary, used_model = parse_detailed(raw_text)
-        except ParserUnavailable as exc:
-            st.session_state["parse_error"] = str(exc)
-        else:
-            st.session_state["legs"] = [leg.model_dump() for leg in itinerary.legs]
-            st.session_state["confirmation_code"] = itinerary.confirmation_code
-            st.session_state["used_model"] = used_model
-
-if err := st.session_state.get("parse_error"):
-    st.error(f"Could not read this confirmation.\n\n{err}")
-
-if "legs" in st.session_state and not st.session_state["legs"]:
-    st.warning("No flights found in that text. Nothing was parsed, and no itinerary "
-               "was invented. Check that you pasted a booking confirmation.")
-
-# ------------------------------------------------- 2. review and correct
-
-if st.session_state.get("legs"):
-    st.divider()
-    st.subheader("Check what was read")
-    code = st.session_state.get("confirmation_code")
-    st.caption(
-        (f"Confirmation {code}. " if code else "")
-        + "Anything the parser could not find is blank — it is never guessed. "
-          "Edit any field and press Enter to update the forecast below."
+    raw_text = st.text_area(
+        "Booking confirmation", key="raw_text", height=220,
+        placeholder="Paste the whole confirmation email here…",
     )
 
+    if st.button("Read my confirmation", type="primary",
+                 disabled=not raw_text.strip(), use_container_width=True):
+        reset()
+        with st.spinner("Reading…"):
+            try:
+                itinerary, used_model = parse_detailed(raw_text)
+            except ParserUnavailable as exc:
+                st.session_state["parse_error"] = str(exc)
+            else:
+                st.session_state["legs"] = [leg.model_dump() for leg in itinerary.legs]
+                st.session_state["confirmation_code"] = itinerary.confirmation_code
+                st.session_state["used_model"] = used_model
+
+    if err := st.session_state.get("parse_error"):
+        st.error(f"Could not read this confirmation.\n\n{err}")
+
+    if st.session_state.get("legs"):
+        code = st.session_state.get("confirmation_code")
+        st.success(f"{len(st.session_state['legs'])} flight(s) found"
+                   + (f" · {code}" if code else ""))
+
+    st.divider()
+    st.caption(
+        "Every number comes from SQL over real 2024 flight records. The language "
+        "model only reads your confirmation — it never produces a figure."
+    )
+
+
+# ============================================================ welcome state
+
+if "legs" not in st.session_state:
+    st.header("What this does")
+    a, b, c = st.columns(3)
+    with a:
+        st.subheader("1 · Check the details")
+        st.write(
+            "An AI reads your confirmation into structured fields. Anything it "
+            "cannot find is left blank rather than guessed, and you can correct "
+            "any of it."
+        )
+    with b:
+        st.subheader("2 · Will I land on time?")
+        st.write(
+            "For each flight, the arrival delay of comparable historical flights — "
+            "not a single guess, but the range they actually landed in, with the "
+            "flights themselves shown."
+        )
+    with c:
+        st.subheader("3 · Better routes")
+        st.write(
+            "Other ways to reach the same destination, ranked by reliability or "
+            "speed, with your own booked route placed among them."
+        )
+
+    st.divider()
+    st.info("**Start on the left** — paste a confirmation, or use the sample itinerary.")
+
+    st.caption(
+        "Built on 6,284,734 US flight records from 2024. Cancelled and diverted "
+        "flights are absent from that data, so Murphy cannot speak to cancellation "
+        "risk, and every range assumes the flight operates."
+    )
+    st.stop()
+
+if not st.session_state["legs"]:
+    st.warning(
+        "No flights found in that text. Nothing was parsed, and no itinerary was "
+        "invented. Check that you pasted a booking confirmation."
+    )
+    st.stop()
+
+
+# ============================================================ result tabs
+
+tab_check, tab_forecast, tab_routes = st.tabs(
+    ["1 · Check the details", "2 · Will I land on time?", "3 · Better routes"]
+)
+
+# ---------------------------------------------------------- 1. check details
+
+with tab_check:
+    st.caption(
+        "Anything the parser could not find is blank — it is never guessed. "
+        "Edit any field and press Enter; the other tabs update."
+    )
     for i, leg in enumerate(st.session_state["legs"]):
         st.markdown(f"**Flight {i + 1}**")
         if leg.get("operated_by"):
             st.caption(f"Operated by {leg['operated_by']} — the forecast uses the "
                        f"marketing carrier shown below.")
         for row_start in (0, 4):
-            row = EDITABLE[row_start:row_start + 4]
             cols = st.columns(4)
-            for col, (field, label, placeholder) in zip(cols, row):
+            for col, (field, label, placeholder) in zip(cols, EDITABLE[row_start:row_start + 4]):
                 value = leg.get(field)
                 leg[field] = col.text_input(
-                    label,
-                    value="" if value is None else str(value),
-                    key=f"leg{i}_{field}",
-                    placeholder=placeholder,
+                    label, value="" if value is None else str(value),
+                    key=f"leg{i}_{field}", placeholder=placeholder,
                 ).strip() or None
 
-# ---------------------------------------------------------- 3. forecast
+# ------------------------------------------------------------- 2. forecast
 
-    st.divider()
-    st.subheader("Will I land on time?")
-
-    for i, leg_dict in enumerate(st.session_state["legs"]):
-        clean = dict(leg_dict)
-        if clean.get("flight_number"):
-            try:
-                clean["flight_number"] = int(clean["flight_number"])
-            except ValueError:
-                clean["flight_number"] = None
-        leg = FlightLeg(**clean)
-
-        label = (f"{leg.carrier or '??'} {leg.flight_number or '??'}  "
-                 f"{leg.origin or '???'} → {leg.dest or '???'}")
-        st.markdown(f"#### {label}")
+with tab_forecast:
+    for leg_dict in st.session_state["legs"]:
+        leg = clean_leg(leg_dict)
+        st.markdown(f"#### {leg.carrier or '??'} {leg.flight_number or '??'}  "
+                    f"{leg.origin or '???'} → {leg.dest or '???'}")
 
         checks = validate(Itinerary(legs=[leg]))[0]
         if checks["missing"]:
             st.info("Still needed before this leg can be forecast: **"
-                    + ", ".join(f.replace("_", " ") for f in checks["missing"]) + "**")
+                    + ", ".join(f.replace("_", " ") for f in checks["missing"])
+                    + "** — add it in *Check the details*.")
             continue
         if checks["unusable"]:
             for problem in checks["unusable"]:
                 st.error(problem)
             continue
 
-        args = to_query_args(leg)
         with st.spinner("Finding comparable flights…"):
-            result = retrieve(Query(**args))
+            result = retrieve(Query(**to_query_args(leg)))
 
         if not result.ok:
             st.error(f"**Murphy will not forecast this flight.**\n\n{result.message}")
@@ -186,53 +236,40 @@ if st.session_state.get("legs"):
                 f"{t['rung']} = {t['n']}" for t in result.ladder_trace))
             continue
 
-        window = landing_window(leg.scheduled_arrival_local, result.p10, result.p90)
         a, b, c = st.columns(3)
         a.metric("Usually earlier than", f"{result.p10:+d} min")
         b.metric("Typical", f"{result.p50:+d} min")
         c.metric("Occasionally as late as", f"{result.p90:+d} min")
 
+        window = landing_window(leg.scheduled_arrival_local, result.p10, result.p90)
         if window:
             st.markdown(f"Scheduled to land **{leg.scheduled_arrival_local}**. "
                         f"8 in 10 comparable flights landed between **{window}**.")
 
-        if result.confidence == "ok":
-            st.success(result.message)
-        elif result.confidence == "limited":
-            st.warning(result.message)
-        else:
-            st.error(result.message)
+        {"ok": st.success, "limited": st.warning}.get(
+            result.confidence, st.error)(result.message)
 
         wx = result.weather
         if wx.get("wet"):
             st.caption(f"{wx['wet']} of these {result.n} flights had rain or snow at "
-                       f"{leg.origin} on the day they flew. See the evidence below for "
-                       f"how they compared.")
-
+                       f"{leg.origin} on the day they flew.")
         st.caption("This range covers flights that operated. Cancelled and diverted "
                    "flights are not in the dataset, so Murphy cannot speak to "
                    "cancellation risk.")
 
         with st.expander(f"See the {result.n} flights this is based on"):
             st.dataframe(
-                result.evidence,
-                use_container_width=True,
-                hide_index=True,
+                result.evidence, use_container_width=True, hide_index=True,
                 column_config={
-                    "flight_id": "Record ID",
-                    "flight_date": "Date",
-                    "arr_delay_min": st.column_config.NumberColumn(
-                        "Arrived (min)", format="%+d"),
-                    "origin_precip_mm": st.column_config.NumberColumn(
-                        "Rain at origin (mm)", format="%.1f"),
-                    "origin_wind_kph": st.column_config.NumberColumn(
-                        "Wind (km/h)", format="%.0f"),
+                    "flight_id": "Record ID", "flight_date": "Date",
+                    "arr_delay_min": st.column_config.NumberColumn("Arrived (min)", format="%+d"),
+                    "origin_precip_mm": st.column_config.NumberColumn("Rain at origin (mm)", format="%.1f"),
+                    "origin_wind_kph": st.column_config.NumberColumn("Wind (km/h)", format="%.0f"),
                 },
             )
             if result.n > len(result.evidence):
                 st.caption(f"Showing the first {len(result.evidence)} of {result.n}. "
                            f"The range is computed over all {result.n}.")
-
             if wx.get("comparable"):
                 st.markdown("**Weather on the day**")
                 st.table({
@@ -247,11 +284,6 @@ if st.session_state.get("legs"):
                     "for your own flight, and this is a description of these rows, not "
                     "a claim that weather caused the difference — season, time of day "
                     "and traffic all move with it."
-                )
-            elif wx.get("wet") or wx.get("dry"):
-                st.caption(
-                    f"Weather at origin: {wx['wet']} of these flights had rain or snow, "
-                    f"{wx['dry']} were dry. Too few on one side to compare them."
                 )
 
         with st.expander("Where this number came from"):
@@ -283,48 +315,39 @@ route.
             st.code(result.sql, language="sql")
             st.caption(
                 f"Parsed by {st.session_state.get('used_model', 'the language model')}, "
-                f"which reads the confirmation text only. Every "
-                f"number above is computed by SQL over the rows listed — the model "
-                f"never produces a figure. Known data limits: March 2024 is absent "
-                f"from the source file, and the source's timestamp columns are "
-                f"unusable for arithmetic, so all figures are in delay-minutes."
+                f"which reads the confirmation text only. Every number above is "
+                f"computed by SQL over the rows listed — the model never produces a "
+                f"figure. Known data limits: March 2024 is absent from the source "
+                f"file, and the source's timestamp columns are unusable for "
+                f"arithmetic, so all figures are in delay-minutes."
             )
 
+# --------------------------------------------------------- 3. better routes
 
-# ------------------------------------------------- 4. alternative routes
+with tab_routes:
+    complete = [leg for leg in map(clean_leg, st.session_state["legs"])
+                if to_query_args(leg) is not None]
 
-if st.session_state.get("legs"):
-    complete = []
-    for leg_dict in st.session_state["legs"]:
-        clean = dict(leg_dict)
-        if clean.get("flight_number"):
-            try:
-                clean["flight_number"] = int(clean["flight_number"])
-            except ValueError:
-                clean["flight_number"] = None
-        leg = FlightLeg(**clean)
-        if to_query_args(leg) is not None:
-            complete.append(leg)
-
-    if complete:
+    if not complete:
+        st.info("Fill in the missing flight details first, in *Check the details*.")
+    else:
         first, last = complete[0], complete[-1]
         trip_origin, trip_dest = first.origin, last.dest
         booked_hub = first.dest if len(complete) > 1 else None
 
-        st.divider()
-        st.subheader("Could you have done better?")
         st.caption(
-            f"Other ways to get from **{trip_origin}** to **{trip_dest}** around the same "
-            f"time, built from flights that actually operated in this month. Your own "
-            f"route is marked. Connections assume a {MIN_CONNECTION_MIN}-minute minimum "
-            f"transfer."
+            f"Other ways to get from **{trip_origin}** to **{trip_dest}** around the "
+            f"same time, built from flights that operated in this month of 2024. "
+            f"Connections assume a {MIN_CONNECTION_MIN}-minute minimum transfer. "
+            f"Schedules change, so treat these as routings that tend to work rather "
+            f"than flights you can book today."
         )
 
         order = st.radio(
             "Rank by", list(SORTS), horizontal=True,
-            help="The same routes, ordered by what matters to you. Reliability counts the "
-                 "worst-case journey time and the share of inbound flights that arrived "
-                 "too late to connect.",
+            help="The same routes, ordered by what matters to you. Reliability counts "
+                 "the worst-case journey time and the share of inbound flights that "
+                 "arrived too late to connect.",
         )
 
         if trip_origin == trip_dest:
@@ -340,9 +363,9 @@ if st.session_state.get("legs"):
 
             if not routes:
                 st.error(
-                    f"**No alternative found with enough evidence to rank.** Murphy could "
-                    f"not build a route from {trip_origin} to {trip_dest} that it can "
-                    f"stand behind, so it is not offering one."
+                    f"**No alternative found with enough evidence to rank.** Murphy "
+                    f"could not build a route from {trip_origin} to {trip_dest} that "
+                    f"it can stand behind, so it is not offering one."
                 )
             else:
                 routes = sorted(routes, key=SORTS[order])
@@ -363,8 +386,8 @@ if st.session_state.get("legs"):
                                 f"{order.lower()}.** The options above it are close.")
                     else:
                         st.warning(f"**Your route ranks {place} of {total} on "
-                                   f"{order.lower()}.** The routes below did better on "
-                                   f"the evidence available.")
+                                   f"{order.lower()}.** The routes below did better "
+                                   f"on the evidence available.")
 
                 for route in shown + ([trailing] if trailing else []):
                     if trailing is not None and route is trailing:
@@ -379,15 +402,13 @@ if st.session_state.get("legs"):
                     c2.metric("1 in 10 worse than", hhmm(route.tail_total_min))
                     if route.connection_risk is not None:
                         c3.metric("Connection missed", f"{route.connection_risk:.0%}")
-                    else:
-                        c3.metric("Stops", "Nonstop")
-
-                    if route.connection_risk is not None:
                         st.caption(
                             f"{route.layover_min} min in {route.hub}. "
                             f"{route.connection_risk:.0%} of {route.connection_sample} "
                             f"comparable inbound flights arrived too late to make it."
                         )
+                    else:
+                        c3.metric("Stops", "Nonstop")
 
                     with st.expander(f"Evidence behind {route.describe()} "
                                      f"(option {route._position})"):
@@ -400,11 +421,9 @@ if st.session_state.get("legs"):
                             )
                             if leg.evidence:
                                 st.dataframe(
-                                    leg.evidence, use_container_width=True,
-                                    hide_index=True,
+                                    leg.evidence, use_container_width=True, hide_index=True,
                                     column_config={
-                                        "flight_id": "Record ID",
-                                        "flight_date": "Date",
+                                        "flight_id": "Record ID", "flight_date": "Date",
                                         "arr_delay_min": st.column_config.NumberColumn(
                                             "Arrived (min)", format="%+d"),
                                         "origin_precip_mm": st.column_config.NumberColumn(
@@ -414,9 +433,9 @@ if st.session_state.get("legs"):
                                     },
                                 )
                         st.caption(
-                            "These itineraries are built by pairing a real arrival with a "
-                            "real departure under the transfer rule. They are feasible "
+                            "These itineraries are built by pairing a real arrival with "
+                            "a real departure under the transfer rule. They are feasible "
                             "connections, not fares an airline sells. Cancelled and "
-                            "diverted flights are absent from the data, so every route is "
-                            "conditional on its flights operating."
+                            "diverted flights are absent from the data, so every route "
+                            "is conditional on its flights operating."
                         )
