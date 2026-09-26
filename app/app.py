@@ -232,6 +232,27 @@ if "legs" not in st.session_state:
         )
 
     st.divider()
+    st.subheader("Two ways of answering, and why you get both")
+    left, right = st.columns(2)
+    with left:
+        st.markdown(
+            "**Retrieval** reads the flights that actually flew your route in this "
+            "month, at this hour, and reports what they did. Every one of them is "
+            "listed in the app, with its record number, so you can check the answer "
+            "rather than take it."
+        )
+    with right:
+        st.markdown(
+            "**A trained model** — gradient-boosted quantile regression, fitted on 6.6 "
+            "million flights from 2023. Across all of 2024 it was **11% more accurate** "
+            "than retrieval. It cannot show you its reasoning."
+        )
+    st.caption(
+        "Murphy shows both. They usually agree, and when they do not, that disagreement "
+        "is worth more than either number on its own."
+    )
+
+    st.divider()
     st.info("**Start on the left** — paste a confirmation, or use the sample itinerary.")
 
     st.caption(
@@ -283,19 +304,6 @@ with tab_forecast:
                 f"{t['rung']} = {t['n']}" for t in result.ladder_trace))
             continue
 
-        a, b, c = st.columns(3)
-        a.metric("1 in 10 land by", f"{result.p10:+d} min")
-        b.metric("Half land by", f"{result.p50:+d} min")
-        c.metric("1 in 10 land later than", f"{result.p90:+d} min")
-
-        window = landing_window(leg.scheduled_arrival_local, result.p10, result.p90)
-        if window:
-            st.markdown(f"Scheduled to land **{leg.scheduled_arrival_local}**. "
-                        f"8 in 10 comparable flights landed between **{window}**.")
-
-        {"ok": st.success, "limited": st.warning}.get(
-            result.confidence, st.error)(result.message)
-
         # The two forecasts, side by side. This comparison is the question
         # Challenge 2 was built to answer, so the traveller sees both answers
         # rather than being handed whichever one we prefer.
@@ -311,21 +319,8 @@ with tab_forecast:
             except Exception:
                 model = None
 
-        st.caption(
-            "Minutes against the scheduled arrival, so a negative number means early."
-        )
 
         if model:
-            st.markdown("### Two ways of answering, side by side")
-            st.markdown(
-                "Murphy works this out twice. **Retrieval** reads the flights that "
-                "actually flew this route and reports what they did — every one of them "
-                "is listed below and you can check it. **The model** is gradient-boosted "
-                "quantile regression trained on 6.6 million flights from 2023, which "
-                "across all of 2024 was **11% more accurate** than retrieval — but it "
-                "cannot show you its reasoning."
-            )
-
             st.altair_chart(
                 interval_chart([
                     {"method": f"Retrieval — the {result.n} flights themselves",
@@ -341,22 +336,16 @@ with tab_forecast:
             )
 
             left, right = st.columns(2)
-            with left:
-                st.markdown("**Retrieval**")
-                st.markdown(
-                    f"- 1 in 10 land by **{result.p10:+d} min**\n"
-                    f"- Half land by **{result.p50:+d} min**\n"
-                    f"- 1 in 10 land later than **{result.p90:+d} min**\n"
-                    f"- Based on **{result.n}** real flights you can read"
-                )
-            with right:
-                st.markdown("**Model**")
-                st.markdown(
-                    f"- 1 in 10 land by **{model['p10']:+d} min**\n"
-                    f"- Half land by **{model['p50']:+d} min**\n"
-                    f"- 1 in 10 land later than **{model['p90']:+d} min**\n"
-                    f"- Learned from **6.6 million** flights"
-                )
+            left.metric("Retrieval says", f"{result.p50:+d} min",
+                        help="The midpoint of what comparable flights actually did.")
+            left.caption(f"8 in 10 landed between **{result.p10:+d}** and "
+                         f"**{result.p90:+d}** min · from **{result.n}** real flights "
+                         f"you can read below")
+            right.metric("The model says", f"{model['p50']:+d} min",
+                         help="Gradient-boosted quantile regression trained on 2023.")
+            right.caption(f"8 in 10 expected between **{model['p10']:+d}** and "
+                          f"**{model['p90']:+d}** min · learned from **6.6 million** "
+                          f"flights")
 
             spread = abs(model["p50"] - result.p50)
             if spread >= 10:
@@ -376,6 +365,22 @@ with tab_forecast:
                 "flight months away — so it assumes typical conditions for this airport "
                 "in this month. On a bad day it will read optimistic."
             )
+
+        if not model:
+            a, b, c = st.columns(3)
+            a.metric("1 in 10 land by", f"{result.p10:+d} min")
+            b.metric("Half land by", f"{result.p50:+d} min")
+            c.metric("1 in 10 land later than", f"{result.p90:+d} min")
+            st.caption("Minutes against the scheduled arrival; negative is early.")
+
+        window = landing_window(leg.scheduled_arrival_local, result.p10, result.p90)
+        if window:
+            st.markdown(f"Scheduled to land **{leg.scheduled_arrival_local}**. "
+                        f"8 in 10 comparable flights landed between **{window}**.")
+
+        {"ok": st.success, "limited": st.warning}.get(
+            result.confidence, st.error)(result.message)
+
 
         wx = result.weather
         if wx.get("wet"):
