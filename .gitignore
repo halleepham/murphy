@@ -5,6 +5,12 @@ data/raw/
 *.csv
 !tests/fixtures/*.csv
 !data/processed/flights/**/*.parquet
+# The two-year table is for model training and is rebuildable from the fetch
+# scripts, so it stays out. The raw downloads too.
+data/processed/flights_full/
+data/raw/bts/
+data/raw/isd/
+data/raw/weather/
 # A 300-row sample IS committed: it documents the schema and lets anyone
 # inspect the columns without the 1.6 GB download.
 !data/raw/sample_rows_2024.csv
