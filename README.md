@@ -213,6 +213,51 @@ than merely different.
 
 ---
 
+## Architecture
+
+```
+  BTS On-Time Performance          NOAA Integrated Surface Database
+  (flights, delays, cancellations)  (hourly airport observations)
+            │                                    │
+            └──────────────┬─────────────────────┘
+                           ▼
+        join on airport and hour · resolve a timezone per airport
+        · build real UTC instants from local HHMM · drop unusable rows
+                           ▼
+        Parquet, partitioned by month, queried in place by DuckDB
+                           │
+   ┌───────────────────────┼───────────────────────┐
+   ▼                       ▼                       ▼
+SQL retrieval        XGBoost quantile         route planner
+comparable flights   regression               airports as nodes,
++ fallback ladder    p10 / p50 / p90          services as edges
+   │                       │                       │
+   └───────────────────────┼───────────────────────┘
+                           ▼
+        range + evidence rows + provenance + uncertainty
+                           ▲
+                           │
+   confirmation text ──► LLM parse ──► validated itinerary ──► traveller
+                         (text only)                           corrects,
+                                                               compares,
+                                                               re-runs
+```
+
+**The data pipeline**, end to end:
+
+| Stage | What happens |
+|---|---|
+| **Ingest** | 24 monthly BTS files and 304 NOAA station-years, both streamed and reduced on the way in |
+| **Clean** | Drop negative-duration and duplicate records; keep cancelled and diverted flights rather than discarding them |
+| **Transform** | Local HHMM integers plus a per-airport timezone become real UTC instants; ISD's packed fields become typed columns |
+| **Join** | Weather attached at each end on the hour of departure and arrival, taking the *worst* condition in that hour rather than the mean |
+| **Store** | Parquet partitioned by month, sorted by origin and carrier so repeated strings compress — 6.9M rows in 172 MB |
+| **Serve** | DuckDB queries the files directly; no database server, no cluster, no load step |
+
+Nothing here needs Spark. Thirteen million rows of columnar Parquet is well
+within what a single process handles, and DuckDB reads it in milliseconds —
+choosing a cluster for this would be cost without benefit.
+
 ## The AI capability
 
 | Component | Role |
