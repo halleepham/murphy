@@ -33,9 +33,16 @@ if __package__ in (None, ""):
 from murphy.graph import (
     MAX_LAYOVER_MIN, MIN_CONNECTION_MIN, MISSED_CONNECTION_PENALTY_MIN,
 )  # noqa: F401
-from murphy.retrieval import PARQUET
+ROOT = Path(__file__).resolve().parents[2]
 
-TRAIN_MONTHS = [1, 2, 4, 5, 6, 7, 8, 9]      # March is absent from the source data
+# The two-year table, not the application's one-year copy. Ranking may only see
+# 2023; 2024 is scored and never ranked on. A whole year apart is a stronger
+# guard against leakage than a month-boundary split within one year, and the
+# earlier version could not do this because the source held a single year.
+PARQUET = ROOT / "data" / "processed" / "flights_full" / "**" / "*.parquet"
+
+TRAIN_YEAR = 2023
+TEST_YEAR = 2024
 TEST_MONTH = 10
 
 # Chosen so the routing decision is real. The first six are long-haul pairs with
@@ -82,13 +89,13 @@ def _hubs(con, origin, dest, limit=8):
 def _history(con, routes: list[tuple[str, str]]) -> dict:
     """Per service, what comparable flights did during the TRAINING months."""
     pairs = ", ".join(f"('{o}','{d}')" for o, d in routes)
-    months = ", ".join(str(m) for m in TRAIN_MONTHS)
     rows = con.execute(f"""
         SELECT origin, dest, carrier, sched_dep_hour, count(*) AS n,
                quantile_cont(arr_delay_min, 0.50) AS p50,
                quantile_cont(arr_delay_min, 0.90) AS p90
         FROM read_parquet('{PARQUET}', hive_partitioning=true)
-        WHERE (origin, dest) IN ({pairs}) AND month IN ({months})
+        WHERE (origin, dest) IN ({pairs}) AND year(flight_date) = {TRAIN_YEAR}
+          AND cancelled = 0 AND arr_delay_min IS NOT NULL
         GROUP BY 1, 2, 3, 4
         HAVING count(*) >= {MIN_HISTORY}
     """).fetchall()
@@ -101,12 +108,12 @@ def _miss_rate(con, routes: list[tuple[str, str]]) -> dict:
     Counted from real training-month flights, not modelled.
     """
     pairs = ", ".join(f"('{o}','{d}')" for o, d in routes)
-    months = ", ".join(str(m) for m in TRAIN_MONTHS)
     rows = con.execute(f"""
         SELECT origin, dest, carrier, sched_dep_hour,
                count(*) AS n, list(arr_delay_min) AS delays
         FROM read_parquet('{PARQUET}', hive_partitioning=true)
-        WHERE (origin, dest) IN ({pairs}) AND month IN ({months})
+        WHERE (origin, dest) IN ({pairs}) AND year(flight_date) = {TRAIN_YEAR}
+          AND cancelled = 0 AND arr_delay_min IS NOT NULL
         GROUP BY 1, 2, 3, 4
         HAVING count(*) >= {MIN_HISTORY}
     """).fetchall()
@@ -122,6 +129,8 @@ def _flights(con, routes: list[tuple[str, str]], month: int) -> dict:
                sched_dep_hour, arr_delay_min, dep_delay_min
         FROM read_parquet('{PARQUET}', hive_partitioning=true)
         WHERE (origin, dest) IN ({pairs}) AND month = {month}
+          AND year(flight_date) = {TEST_YEAR}
+          AND cancelled = 0 AND arr_delay_min IS NOT NULL
     """).fetchall()
     out = defaultdict(list)
     for r in rows:
@@ -265,7 +274,7 @@ def run(month: int = TEST_MONTH, verbose: bool = True) -> dict:
 def report(results: dict) -> None:
     n = results["decisions"]
     print(f"\n{'=' * 66}\nRESULTS — {n} planning decisions, "
-          f"{len(PAIRS)} routes, month {TEST_MONTH} 2024\n{'=' * 66}")
+          f"{len(PAIRS)} routes, month {TEST_MONTH} of {TEST_YEAR}\n{'=' * 66}")
     print(f"\nThe two methods chose the same itinerary {results['agree']} times "
           f"({results['agree'] / n:.0%}).")
     print(f"They differed on {n - results['agree']} decisions — those are where "
@@ -337,7 +346,7 @@ def main():
     ap = argparse.ArgumentParser(description="Compare risk-aware ranking with scheduled-time ranking.")
     ap.add_argument("--month", type=int, default=TEST_MONTH)
     a = ap.parse_args()
-    print(f"Training on months {TRAIN_MONTHS}, testing on month {a.month}.\n")
+    print(f"Ranking on {TRAIN_YEAR} only; scoring on month {a.month} of {TEST_YEAR}.\n")
     report(run(a.month))
 
 

@@ -1,6 +1,6 @@
 # Evaluation — does risk-aware ranking beat ranking by scheduled time?
 
-The comparison the instructor feedback asks for, run on real 2024 outcomes.
+The comparison the instructor feedback asks for, on real outcomes.
 Reproduce with:
 
 ```
@@ -16,28 +16,30 @@ by the share of inbound flights that arrived too late to make the transfer.
 Both choose an itinerary for a real origin, destination, date and target departure
 time. We then look up what actually happened to each one's choice.
 
-- **Temporal split, never random.** Ranking uses January–September 2024 only.
-  October is used for scoring and never for ranking.
+- **Ranking sees 2023 only. Scoring uses October 2024.** A full year apart, so
+  nothing the ranker saw can contain the outcome it is judged on.
 - **Ten routes**, six with roughly one nonstop a day and dozens of connecting
   options, four well served — the latter check that the method does not connect
   needlessly.
 - **Three target departure times a day** (07:00, 12:00, 17:00), candidates within
   three hours. Comparing a 06:00 departure against a 15:00 one is not comparing
   substitutes.
+- Cancelled flights are excluded from both the history and the candidate set: a
+  flight that did not operate is not an itinerary anyone could have taken.
 
 ```
-RESULTS — 923 planning decisions, 10 routes, month 10 2024
+RESULTS — 930 planning decisions, 10 routes, month 10 of 2024
 ==================================================================
 
-The two methods chose the same itinerary 515 times (56%).
-They differed on 408 decisions — those are where the comparison lives.
+The two methods chose the same itinerary 474 times (51%).
+They differed on 456 decisions — those are where the comparison lives.
 
 Completed trips only — missed connections excluded
 
                 median      mean       p90        missed
 --------------------------------------------------------
-Scheduled         297m      301m      395m       51 (5.5%)
-Murphy            305m      306m      405m       18 (2.0%)
+Scheduled         315m      319m      403m       75 (8.1%)
+Murphy            325m      330m      419m       39 (4.2%)
 
 With missed connections charged 240 minutes
 (a stated assumption, not a measurement — we have no data on what
@@ -45,8 +47,8 @@ rebooking actually costs)
 
                 median      mean       p90
 ------------------------------------------
-Scheduled         302m      318m      410m
-Murphy            309m      312m      412m
+Scheduled         324m      341m      432m
+Murphy            329m      340m      436m
 
 Door-to-door minutes, from scheduled departure to actual arrival.
 
@@ -54,61 +56,66 @@ Door-to-door minutes, from scheduled departure to actual arrival.
 PAIRED — same route, same day, only where they disagreed
 ==================================================================
 
-365 paired decisions where the two methods chose differently.
+404 paired decisions where the two methods chose differently.
 
-  Murphy arrived earlier    133  (36%)
-  Murphy arrived later      225  (62%)
-  Same arrival                7  (2%)
+  Murphy arrived earlier    108  (27%)
+  Murphy arrived later      293  (73%)
+  Same arrival                3  (1%)
 
-  Mean difference          +4.4 min (negative favours Murphy)
-  Median difference        +6.0 min
+  Mean difference         +14.4 min (negative favours Murphy)
+  Median difference       +12.0 min
   Worst case for Murphy    +248 min
-  Best case for Murphy     -545 min
+  Best case for Murphy     -210 min
 
-  Connections missed by the scheduled-time pick but not Murphy: 36
-  Connections missed by Murphy but not the scheduled-time pick: 3
+  Connections missed by the scheduled-time pick but not Murphy: 43
+  Connections missed by Murphy but not the scheduled-time pick: 7
 
-  Decisions where the two disagreed about whether to connect at all: 0 of 408
+  Decisions where the two disagreed about whether to connect at all: 0 of 456
 ```
 
 ## What this shows
 
-**Risk-aware ranking buys reliability with time.** It is not a clean win, and
-saying so is more useful than claiming one.
+**Risk-aware ranking halves the missed-connection rate and costs about ten
+minutes.** It is not a win, and saying so is more useful than claiming one.
 
-| | Scheduled-time | Murphy | Difference |
+| | Scheduled-time | Murphy | |
 |---|---|---|---|
-| Missed connections | 51 (5.5%) | **18 (2.0%)** | **−65%** |
-| Median door-to-door | 297 min | 305 min | +8 min |
-| Mean, failures charged | 318 min | **312 min** | −6 min |
-| p90, failures charged | 410 min | 412 min | +2 min |
+| Missed connections | 75 (8.1%) | **39 (4.2%)** | **−48%** |
+| Median door-to-door, completed trips | 315 min | 325 min | +10 min |
+| Mean, failures charged 240 min | 341 min | **340 min** | −1 min |
 
-On 923 planning decisions the two methods agreed 56% of the time — when a
-nonstop was available in the departure window, both took it. Murphy does not
-connect needlessly.
+On 930 planning decisions the two agreed 51% of the time — whenever a nonstop
+was available in the departure window, both took it. Murphy does not connect
+needlessly.
 
-On the 365 decisions where they differed, Murphy arrived **later** 62% of the
-time, by a median of 6 minutes. In exchange it missed 36 connections the
-scheduled-time ranking missed, while missing only 3 the baseline made.
+On the 456 decisions where they differed, Murphy arrived **later** 73% of the
+time, by a median of 12 minutes. In exchange it avoided 43 connection failures
+the scheduled-time ranking walked into, while causing 7 of its own.
 
-So the honest answer to *"does the improved approach provide useful value
-compared with a simpler solution?"* is: **yes for reliability, no for typical
-speed.** A traveller with a deadline should prefer it; a traveller who only
-wants to be home sooner on an average day should not. That trade-off is the
-kind of thing the traveller should be choosing, which is why the application
-exposes the objectives rather than picking one.
+**Once missed connections are charged, the two methods are a dead heat on total
+journey time** — 340 minutes against 341. That is the honest headline. Risk-aware
+ranking converts a small, certain time cost into a large reduction in the chance
+of a bad day, and at a 240-minute penalty those very nearly cancel out.
+
+Which means the answer to *"does the improved approach provide useful value?"*
+depends on something the data cannot settle: how much a traveller hates missing a
+connection. Someone with a deadline should take the trade. Someone who simply
+wants to be home sooner on an average day should not. **That is a preference, not
+a fact** — which is why the application exposes the objectives and lets the
+traveller rank by them, rather than choosing on their behalf.
 
 ## Limitations of this evaluation
 
 - **A missed connection's real cost is unknown.** The penalised view charges a
-  flat 240 minutes. That is a stated assumption, not a measurement.
-- **Cancellations are absent from the source data**, so no itinerary is ever
-  scored as cancelled. Both methods benefit equally, but real reliability
-  differences are understated.
-- **Connections are constructed, not published.** A one-stop itinerary here is
-  an arrival paired with a departure under a 45-minute rule, not a fare an
+  flat 240 minutes. Since the two methods finish within a minute of each other
+  under that assumption, the conclusion is sensitive to it: a higher penalty
+  favours Murphy, a lower one favours the baseline.
+- **Connections are constructed, not published.** A one-stop itinerary pairs a
+  real arrival with a real departure under a 45-minute rule, not a fare an
   airline sells.
+- **Cancellation is excluded rather than modelled.** The data now contains
+  cancelled flights, but the planner does not yet use historical cancellation
+  rates when ranking. That is the obvious next improvement.
 - **One month, ten routes.** Enough to see a consistent effect on connection
-  reliability; not enough to claim a general result.
-- **No fare data**, so cost never enters the ranking, and a cheaper itinerary
-  is never preferred.
+  reliability; not enough for a general claim.
+- **No fare data**, so cost never enters the ranking.

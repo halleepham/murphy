@@ -263,9 +263,19 @@ with tab_forecast:
         if wx.get("wet"):
             st.caption(f"{wx['wet']} of these {result.n} flights had rain or snow at "
                        f"{leg.origin} on the day they flew.")
-        st.caption("This range covers flights that operated. Cancelled and diverted "
-                   "flights are not in the dataset, so Murphy cannot speak to "
-                   "cancellation risk.")
+
+        cx = result.cancellation
+        if cx:
+            if cx["cancelled"]:
+                st.caption(
+                    f"Separately: **{cx['cancelled']} of {cx['scheduled']}** comparable "
+                    f"flights ({cx['rate']:.1%}) were cancelled outright and never flew. "
+                    f"They are not in the range above, because a cancelled flight says "
+                    f"nothing about how late you land."
+                )
+            else:
+                st.caption(f"None of the {cx['scheduled']} comparable flights were "
+                           f"cancelled.")
 
         with st.expander(f"See the {result.n} flights this is based on"):
             st.dataframe(
@@ -298,8 +308,9 @@ with tab_forecast:
 
         with st.expander("Where this number came from"):
             st.markdown(f"""
-**Dataset** — MFDD / Aeolus 2024 flight records (BTS-derived), 6,284,734 rows
-after cleaning, 305 airports, 15 carriers.
+**Dataset** — US Bureau of Transportation Statistics On-Time Performance,
+2024, joined to NOAA Integrated Surface Database station observations.
+6,971,908 flights, 305 airports, 15 carriers, including cancellations.
 
 **Matched on** — {result.match_description}
 
@@ -327,9 +338,9 @@ route.
                 f"Parsed by {st.session_state.get('used_model', 'the language model')}, "
                 f"which reads the confirmation text only. Every number above is "
                 f"computed by SQL over the rows listed — the model never produces a "
-                f"figure. Known data limits: March 2024 is absent from the source "
-                f"file, and the source's timestamp columns are unusable for "
-                f"arithmetic, so all figures are in delay-minutes."
+                f"figure. Delays are measured in minutes against the published "
+                f"schedule; cancelled flights are counted separately rather than "
+                f"folded into the range."
             )
 
 # --------------------------------------------------------- 3. better routes
