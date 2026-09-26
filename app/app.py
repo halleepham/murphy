@@ -16,6 +16,7 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import altair as alt
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -85,6 +86,41 @@ def landing_window(scheduled_arrival, p10, p90):
         return None
     return (f"{(base + timedelta(minutes=p10)).strftime('%H:%M')} – "
             f"{(base + timedelta(minutes=p90)).strftime('%H:%M')}")
+
+
+def interval_chart(rows: list[dict]):
+    """Both forecasts as intervals on a shared axis.
+
+    Two ranges are far easier to compare as bars against one scale than as six
+    numbers the reader has to line up themselves. The tick is the midpoint, the
+    bar spans the eightieth percentile band, and the dashed line is arriving
+    exactly on time.
+    """
+    data = alt.Data(values=rows)
+    order = [r["method"] for r in rows]
+
+    band = alt.Chart(data).mark_bar(height=34, cornerRadius=5, opacity=0.85).encode(
+        x=alt.X("p10:Q", title="Minutes against the scheduled arrival  ·  negative is early",
+                scale=alt.Scale(nice=True)),
+        x2="p90:Q",
+        y=alt.Y("method:N", title=None, sort=order,
+                axis=alt.Axis(labelLimit=320, labelFontSize=13)),
+        color=alt.Color("method:N", sort=order, legend=None,
+                        scale=alt.Scale(range=["#1f77b4", "#8c6bb1"])),
+        tooltip=[alt.Tooltip("method:N", title="Worked out by"),
+                 alt.Tooltip("p10:Q", title="1 in 10 land by"),
+                 alt.Tooltip("p50:Q", title="Half land by"),
+                 alt.Tooltip("p90:Q", title="1 in 10 land later than")],
+    )
+    midpoint = alt.Chart(data).mark_tick(
+        thickness=3, size=38, color="white", opacity=0.95,
+    ).encode(x="p50:Q", y=alt.Y("method:N", sort=order, title=None))
+
+    on_time = alt.Chart(alt.Data(values=[{"zero": 0}])).mark_rule(
+        strokeDash=[4, 4], color="#444", size=1.5,
+    ).encode(x="zero:Q")
+
+    return (band + midpoint + on_time).properties(height=140)
 
 
 def clean_leg(leg_dict) -> FlightLeg:
@@ -251,10 +287,6 @@ with tab_forecast:
         a.metric("1 in 10 land by", f"{result.p10:+d} min")
         b.metric("Half land by", f"{result.p50:+d} min")
         c.metric("1 in 10 land later than", f"{result.p90:+d} min")
-        st.caption(
-            "Minutes against the scheduled arrival, so a negative number means early. "
-            "Eight of ten comparable flights landed between the first and last figure."
-        )
 
         window = landing_window(leg.scheduled_arrival_local, result.p10, result.p90)
         if window:
@@ -279,36 +311,65 @@ with tab_forecast:
             except Exception:
                 model = None
 
+        st.caption(
+            "Minutes against the scheduled arrival, so a negative number means early."
+        )
+
         if model:
-            st.markdown("#### A second opinion")
-            st.caption(
-                "Murphy works out this range two different ways. They usually agree; "
-                "when they do not, that itself is worth knowing."
+            st.markdown("### Two ways of answering, side by side")
+            st.markdown(
+                "Murphy works this out twice. **Retrieval** reads the flights that "
+                "actually flew this route and reports what they did — every one of them "
+                "is listed below and you can check it. **The model** is gradient-boosted "
+                "quantile regression trained on 6.6 million flights from 2023, which "
+                "across all of 2024 was **11% more accurate** than retrieval — but it "
+                "cannot show you its reasoning."
             )
-            st.table({
-                "How it was worked out": [
-                    f"Looking at the {result.n} flights themselves",
-                    "A model trained on 6.6 million past flights",
-                ],
-                "1 in 10 land by": [f"{result.p10:+d} min", f"{model['p10']:+d} min"],
-                "Half land by": [f"{result.p50:+d} min", f"{model['p50']:+d} min"],
-                "1 in 10 land later than": [f"{result.p90:+d} min", f"{model['p90']:+d} min"],
-            })
+
+            st.altair_chart(
+                interval_chart([
+                    {"method": f"Retrieval — the {result.n} flights themselves",
+                     "p10": result.p10, "p50": result.p50, "p90": result.p90},
+                    {"method": "Model — trained on 6.6 million flights",
+                     "p10": model["p10"], "p50": model["p50"], "p90": model["p90"]},
+                ]),
+                use_container_width=True,
+            )
+            st.caption(
+                "Each bar spans where 8 in 10 flights land. The white tick is the "
+                "midpoint. The dashed line is arriving exactly on time."
+            )
+
+            left, right = st.columns(2)
+            with left:
+                st.markdown("**Retrieval**")
+                st.markdown(
+                    f"- 1 in 10 land by **{result.p10:+d} min**\n"
+                    f"- Half land by **{result.p50:+d} min**\n"
+                    f"- 1 in 10 land later than **{result.p90:+d} min**\n"
+                    f"- Based on **{result.n}** real flights you can read"
+                )
+            with right:
+                st.markdown("**Model**")
+                st.markdown(
+                    f"- 1 in 10 land by **{model['p10']:+d} min**\n"
+                    f"- Half land by **{model['p50']:+d} min**\n"
+                    f"- 1 in 10 land later than **{model['p90']:+d} min**\n"
+                    f"- Learned from **6.6 million** flights"
+                )
 
             spread = abs(model["p50"] - result.p50)
             if spread >= 10:
                 st.warning(
-                    f"**These two disagree by {spread} minutes on the typical case.** "
-                    f"Neither is simply wrong. The first reports what actually happened "
-                    f"to flights like yours and you can read every one of them below. "
-                    f"The second is more accurate on average — 11% better across 6.9 "
-                    f"million flights — but it cannot show you its reasoning. When they "
-                    f"diverge, trust the one you can check."
+                    f"**These disagree by {spread} minutes on the typical case.** "
+                    f"Neither is simply wrong. Retrieval reports what happened to "
+                    f"flights like yours; the model generalises across millions. When "
+                    f"they diverge, trust the one you can check — the evidence is below."
                 )
             else:
-                st.caption(
-                    "The two agree closely here, which is the usual case and a reason "
-                    "to be more confident in the range."
+                st.success(
+                    f"**The two agree to within {spread} minutes.** That is the usual "
+                    f"case, and a reason to be more confident in this range."
                 )
             st.caption(
                 "The model needs to know the weather, and no forecast exists for a "
