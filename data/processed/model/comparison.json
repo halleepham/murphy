@@ -1,0 +1,22 @@
+[
+  {
+    "method": "L1 lookup",
+    "pinball_p10": 3.951889753341675,
+    "pinball_p50": 12.473613739013672,
+    "pinball_p90": 12.194049835205078,
+    "pinball_mean": 9.539851109186808,
+    "coverage_80": 0.7091039218587268,
+    "median_abs_error": 13.0,
+    "interval_width": 58.96009826660156
+  },
+  {
+    "method": "L2 model",
+    "pinball_p10": 3.382538080215454,
+    "pinball_p50": 11.542709350585938,
+    "pinball_p90": 10.501916885375977,
+    "pinball_mean": 8.47572143872579,
+    "coverage_80": 0.7699272417987594,
+    "median_abs_error": 10.911901473999023,
+    "interval_width": 59.21566390991211
+  }
+]
