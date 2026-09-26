@@ -40,6 +40,14 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+SAMPLES = {
+    "Delta, two legs via Atlanta": "confirmation_synthetic.txt",
+    "American, forwarded email": "confirmation_forwarded.txt",
+    "Alaska, single leg": "confirmation_alaska.txt",
+    "United, missing airports": "confirmation_united_partial.txt",
+    "Not a confirmation at all": "not_a_confirmation.txt",
+}
+
 EDITABLE = [
     ("carrier", "Airline", "DL"),
     ("flight_number", "Flight no.", "1422"),
@@ -144,9 +152,27 @@ with st.sidebar:
     )
     st.divider()
 
-    if st.button("Use a sample itinerary", use_container_width=True):
-        st.session_state["raw_text"] = (FIXTURES / "confirmation_synthetic.txt").read_text()
+    sample = st.selectbox(
+        "Try a sample", list(SAMPLES), index=0,
+        help="Different airlines and formats, including ones Murphy should refuse.",
+    )
+    if st.button("Load this sample", use_container_width=True):
+        st.session_state["raw_text"] = (FIXTURES / SAMPLES[sample]).read_text()
         reset()
+
+    # Not everyone has a confirmation to hand, and nobody should have to fake one
+    # to ask about a route. This drops in an empty leg so the same editable
+    # fields appear with nothing parsed into them.
+    if st.button("Enter a flight by hand", use_container_width=True):
+        reset()
+        st.session_state["raw_text"] = ""
+        st.session_state["legs"] = [{
+            "carrier": None, "flight_number": None, "origin": None, "dest": None,
+            "departure_date": None, "scheduled_departure_local": None,
+            "scheduled_arrival_local": None, "operated_by": None,
+        }]
+        st.session_state["confirmation_code"] = None
+        st.session_state["used_model"] = "entered by hand"
 
     raw_text = st.text_area(
         "Booking confirmation", key="raw_text", height=220,
@@ -457,13 +483,14 @@ November 2026 flight is compared against November 2024 flights on the same
 route.
 """)
             st.code(result.sql, language="sql")
+            source = st.session_state.get("used_model", "the language model")
             st.caption(
-                f"Parsed by {st.session_state.get('used_model', 'the language model')}, "
-                f"which reads the confirmation text only. Every number above is "
-                f"computed by SQL over the rows listed — the model never produces a "
-                f"figure. Delays are measured in minutes against the published "
-                f"schedule; cancelled flights are counted separately rather than "
-                f"folded into the range."
+                ("Entered by hand. " if source == "entered by hand"
+                 else f"Parsed by {source}, which reads the confirmation text only. ")
+                + "Every number above is computed by SQL over the rows listed — the "
+                "model never produces a figure. Delays are measured in minutes against "
+                "the published schedule; cancelled flights are counted separately "
+                "rather than folded into the range."
             )
 
 # --------------------------------------------------------- 3. better routes
