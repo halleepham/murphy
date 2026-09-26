@@ -98,11 +98,18 @@ def interval_chart(rows: list[dict]):
     """Both forecasts as intervals on one axis: easier to compare than six numbers."""
     data = alt.Data(values=rows)
     order = [r["method"] for r in rows]
-    band = alt.Chart(data).mark_bar(height=34, cornerRadius=5, opacity=0.85).encode(
+    # Each row gets its own band with generous padding, and every mark is drawn
+    # smaller than the band. Without that the tick -- which is taller than the
+    # bar so the midpoint stays visible -- reaches into the neighbouring row and
+    # the two intervals read as if they overlap.
+    y = alt.Y("method:N", title=None, sort=order,
+              scale=alt.Scale(paddingInner=0.55, paddingOuter=0.4),
+              axis=alt.Axis(labelLimit=320, labelFontSize=13))
+
+    band = alt.Chart(data).mark_bar(height=26, cornerRadius=4, opacity=0.9).encode(
         x=alt.X("p10:Q", title="Minutes against the scheduled arrival  ·  negative is early"),
         x2="p90:Q",
-        y=alt.Y("method:N", title=None, sort=order,
-                axis=alt.Axis(labelLimit=320, labelFontSize=13)),
+        y=y,
         color=alt.Color("method:N", sort=order, legend=None,
                         scale=alt.Scale(range=["#1f77b4", "#8c6bb1"])),
         tooltip=[alt.Tooltip("method:N", title="Worked out by"),
@@ -110,11 +117,11 @@ def interval_chart(rows: list[dict]):
                  alt.Tooltip("p50:Q", title="Half land by"),
                  alt.Tooltip("p90:Q", title="1 in 10 land later than")],
     )
-    mid = alt.Chart(data).mark_tick(thickness=3, size=38, color="white").encode(
-        x="p50:Q", y=alt.Y("method:N", sort=order, title=None))
+    mid = alt.Chart(data).mark_tick(thickness=3, size=30, color="white").encode(
+        x="p50:Q", y=y)
     on_time = alt.Chart(alt.Data(values=[{"zero": 0}])).mark_rule(
         strokeDash=[4, 4], color="#444").encode(x="zero:Q")
-    return (band + mid + on_time).properties(height=130)
+    return (band + mid + on_time).properties(height=170).configure_view(strokeWidth=0)
 
 
 def clean_leg(leg_dict) -> FlightLeg:
