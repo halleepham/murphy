@@ -8,6 +8,9 @@ data/raw/
 # The two-year table is for model training and is rebuildable from the fetch
 # scripts, so it stays out. The raw downloads too.
 data/processed/flights_full/
+# but the trained model IS committed -- the deployed application loads it and
+# cannot retrain on a free tier
+!data/processed/model/
 data/raw/bts/
 data/raw/isd/
 data/raw/weather/

@@ -213,6 +213,39 @@ def main():
     booster.save_model(MODEL_DIR / "l2_quantile.json")
     (MODEL_DIR / "comparison.json").write_text(json.dumps(results, indent=2))
 
+    # The category codes are part of the model. Without them a saved booster is
+    # unusable, because the integers it split on mean nothing on their own.
+    (MODEL_DIR / "categories.json").write_text(json.dumps(
+        {name: sorted(set(train[name].tolist())) for name in CATEGORICAL}, indent=2))
+
+    # The model expects weather, and a traveller's flight has none -- there is no
+    # forecast for a date months away. So the application predicts under typical
+    # conditions for that airport and month, taken from history, and says so.
+    # An assumption stated is worth more than a number that pretends otherwise.
+    con.execute(f"""
+        COPY (
+            SELECT origin, month,
+                   median(origin_temp_c)        AS origin_temp_c,
+                   median(origin_wind_ms)       AS origin_wind_ms,
+                   median(origin_precip_mm)     AS origin_precip_mm,
+                   median(origin_visibility_m)  AS origin_visibility_m
+            FROM read_parquet('{PARQUET}', hive_partitioning=true)
+            WHERE year(flight_date) = {TRAIN_YEAR} AND {USABLE}
+            GROUP BY 1, 2
+        ) TO '{MODEL_DIR / "typical_weather.parquet"}' (FORMAT PARQUET)
+    """)
+    con.execute(f"""
+        COPY (
+            SELECT origin, dest,
+                   CAST(median(sched_duration_min) AS INT) AS sched_duration_min,
+                   CAST(median(distance_mi) AS INT)        AS distance_mi
+            FROM read_parquet('{PARQUET}', hive_partitioning=true)
+            WHERE year(flight_date) = {TRAIN_YEAR}
+            GROUP BY 1, 2
+        ) TO '{MODEL_DIR / "route_norms.parquet"}' (FORMAT PARQUET)
+    """)
+    print(f"\nsaved model, categories, typical weather and route norms to {MODEL_DIR}")
+
     gain = booster.get_score(importance_type="gain")
     print("\nwhat the model leans on (gain):")
     for name, value in sorted(gain.items(), key=lambda kv: -kv[1])[:8]:

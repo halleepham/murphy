@@ -25,6 +25,7 @@ from murphy.parser import (  # noqa: E402
 )
 from murphy.retrieval import COMFORTABLE, MINIMUM, Query, retrieve  # noqa: E402
 from murphy.graph import MIN_CONNECTION_MIN, SORTS, plan_routes  # noqa: E402
+from murphy import forecast  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -258,6 +259,52 @@ with tab_forecast:
 
         {"ok": st.success, "limited": st.warning}.get(
             result.confidence, st.error)(result.message)
+
+        # The two forecasts, side by side. This comparison is the question
+        # Challenge 2 was built to answer, so the traveller sees both answers
+        # rather than being handed whichever one we prefer.
+        model = None
+        if forecast.available():
+            try:
+                model = forecast.predict(
+                    leg.carrier, leg.origin, leg.dest,
+                    date.fromisoformat(leg.departure_date).month,
+                    date.fromisoformat(leg.departure_date).isoweekday(),
+                    int(leg.scheduled_departure_local.split(":")[0]),
+                )
+            except Exception:
+                model = None
+
+        if model:
+            st.markdown("**A second opinion**")
+            left, right = st.columns(2)
+            with left:
+                st.markdown("*From the flights themselves*")
+                st.markdown(f"### {result.p10:+d} · {result.p50:+d} · {result.p90:+d}")
+                st.caption(f"The 10th, 50th and 90th percentiles of what {result.n} "
+                           f"comparable flights actually did. You can read every one "
+                           f"of them below.")
+            with right:
+                st.markdown("*From a trained model*")
+                st.markdown(f"### {model['p10']:+d} · {model['p50']:+d} · {model['p90']:+d}")
+                st.caption("Gradient-boosted quantile regression, trained on 2023 and "
+                           "11% more accurate than the lookup across 6.9 million 2024 "
+                           "flights — but you cannot inspect why it said this.")
+
+            spread = abs(model["p50"] - result.p50)
+            if spread >= 10:
+                st.warning(
+                    f"**The two disagree by {spread} minutes on the typical case.** "
+                    f"Neither is wrong exactly — the lookup reports what happened to "
+                    f"flights like this one, the model generalises across millions of "
+                    f"flights. When they diverge, the evidence below is the thing you "
+                    f"can actually check."
+                )
+            st.caption(
+                "The model needs weather, and no forecast exists for a flight months "
+                "away, so it predicts under typical conditions for this airport and "
+                "month. On a bad day it will read optimistic."
+            )
 
         wx = result.weather
         if wx.get("wet"):
