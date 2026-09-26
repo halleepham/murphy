@@ -248,9 +248,13 @@ with tab_forecast:
             continue
 
         a, b, c = st.columns(3)
-        a.metric("Usually earlier than", f"{result.p10:+d} min")
-        b.metric("Typical", f"{result.p50:+d} min")
-        c.metric("Occasionally as late as", f"{result.p90:+d} min")
+        a.metric("1 in 10 land by", f"{result.p10:+d} min")
+        b.metric("Half land by", f"{result.p50:+d} min")
+        c.metric("1 in 10 land later than", f"{result.p90:+d} min")
+        st.caption(
+            "Minutes against the scheduled arrival, so a negative number means early. "
+            "Eight of ten comparable flights landed between the first and last figure."
+        )
 
         window = landing_window(leg.scheduled_arrival_local, result.p10, result.p90)
         if window:
@@ -276,34 +280,40 @@ with tab_forecast:
                 model = None
 
         if model:
-            st.markdown("**A second opinion**")
-            left, right = st.columns(2)
-            with left:
-                st.markdown("*From the flights themselves*")
-                st.markdown(f"### {result.p10:+d} · {result.p50:+d} · {result.p90:+d}")
-                st.caption(f"The 10th, 50th and 90th percentiles of what {result.n} "
-                           f"comparable flights actually did. You can read every one "
-                           f"of them below.")
-            with right:
-                st.markdown("*From a trained model*")
-                st.markdown(f"### {model['p10']:+d} · {model['p50']:+d} · {model['p90']:+d}")
-                st.caption("Gradient-boosted quantile regression, trained on 2023 and "
-                           "11% more accurate than the lookup across 6.9 million 2024 "
-                           "flights — but you cannot inspect why it said this.")
+            st.markdown("#### A second opinion")
+            st.caption(
+                "Murphy works out this range two different ways. They usually agree; "
+                "when they do not, that itself is worth knowing."
+            )
+            st.table({
+                "How it was worked out": [
+                    f"Looking at the {result.n} flights themselves",
+                    "A model trained on 6.6 million past flights",
+                ],
+                "1 in 10 land by": [f"{result.p10:+d} min", f"{model['p10']:+d} min"],
+                "Half land by": [f"{result.p50:+d} min", f"{model['p50']:+d} min"],
+                "1 in 10 land later than": [f"{result.p90:+d} min", f"{model['p90']:+d} min"],
+            })
 
             spread = abs(model["p50"] - result.p50)
             if spread >= 10:
                 st.warning(
-                    f"**The two disagree by {spread} minutes on the typical case.** "
-                    f"Neither is wrong exactly — the lookup reports what happened to "
-                    f"flights like this one, the model generalises across millions of "
-                    f"flights. When they diverge, the evidence below is the thing you "
-                    f"can actually check."
+                    f"**These two disagree by {spread} minutes on the typical case.** "
+                    f"Neither is simply wrong. The first reports what actually happened "
+                    f"to flights like yours and you can read every one of them below. "
+                    f"The second is more accurate on average — 11% better across 6.9 "
+                    f"million flights — but it cannot show you its reasoning. When they "
+                    f"diverge, trust the one you can check."
+                )
+            else:
+                st.caption(
+                    "The two agree closely here, which is the usual case and a reason "
+                    "to be more confident in the range."
                 )
             st.caption(
-                "The model needs weather, and no forecast exists for a flight months "
-                "away, so it predicts under typical conditions for this airport and "
-                "month. On a bad day it will read optimistic."
+                "The model needs to know the weather, and no forecast exists for a "
+                "flight months away — so it assumes typical conditions for this airport "
+                "in this month. On a bad day it will read optimistic."
             )
 
         wx = result.weather
