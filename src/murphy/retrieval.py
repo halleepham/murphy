@@ -41,6 +41,11 @@ WIDE_HOURS = 3
 # split is noise and saying anything about it would be dishonest.
 MIN_WEATHER_GROUP = 3
 
+# Cancelled flights never arrived, so they cannot contribute to an arrival-delay
+# range. Counting them as evidence would inflate the sample with rows that say
+# nothing about lateness. They are reported separately instead.
+OPERATED = "cancelled = 0 AND arr_delay_min IS NOT NULL"
+
 
 @dataclass
 class Query:
@@ -72,6 +77,7 @@ class Result:
     p90: int | None = None
     evidence: list = field(default_factory=list)
     weather: dict = field(default_factory=dict)
+    cancellation: dict = field(default_factory=dict)
     ladder_trace: list = field(default_factory=list)
     sql: str = ""
 
@@ -94,32 +100,53 @@ def _ladder(q: Query) -> list[tuple[str, str, str]]:
     return [
         (
             "exact",
-            f"{route} AND carrier = '{q.carrier}' AND month = {q.month} "
+            f"{OPERATED} AND {route} AND carrier = '{q.carrier}' AND month = {q.month} "
             f"AND sched_dep_hour BETWEEN {bin_lo} AND {bin_hi}",
             f"{q.carrier} {q.origin}→{q.dest}, same month, departing "
             f"{bin_lo:02d}:00–{bin_hi:02d}:59",
         ),
         (
             "wider departure window",
-            f"{route} AND carrier = '{q.carrier}' AND month = {q.month} "
+            f"{OPERATED} AND {route} AND carrier = '{q.carrier}' AND month = {q.month} "
             f"AND sched_dep_hour BETWEEN {wide_lo} AND {wide_hi}",
             f"{q.carrier} {q.origin}→{q.dest}, same month, departing within "
             f"{WIDE_HOURS}h of {q.sched_dep_hour:02d}:00",
         ),
         (
             "any month",
-            f"{route} AND carrier = '{q.carrier}' "
+            f"{OPERATED} AND {route} AND carrier = '{q.carrier}' "
             f"AND sched_dep_hour BETWEEN {wide_lo} AND {wide_hi}",
             f"{q.carrier} {q.origin}→{q.dest}, any month, departing within "
             f"{WIDE_HOURS}h of {q.sched_dep_hour:02d}:00",
         ),
         (
             "any carrier, any month",
-            f"{route} AND sched_dep_hour BETWEEN {wide_lo} AND {wide_hi}",
+            f"{OPERATED} AND {route} AND sched_dep_hour BETWEEN {wide_lo} AND {wide_hi}",
             f"any carrier {q.origin}→{q.dest}, any month, departing within "
             f"{WIDE_HOURS}h of {q.sched_dep_hour:02d}:00",
         ),
     ]
+
+
+def _cancellation_rate(con, where: str) -> dict:
+    """How often this service was cancelled outright.
+
+    Counted over the same match, but without the operated-only filter -- the
+    whole point is the flights that never flew.
+    """
+    base = where.replace(OPERATED + " AND ", "")
+    row = con.execute(f"""
+        SELECT count(*) AS scheduled,
+               count(*) FILTER (WHERE cancelled = 1) AS cancelled,
+               count(*) FILTER (WHERE diverted = 1)  AS diverted
+        FROM read_parquet('{PARQUET}', hive_partitioning=true)
+        WHERE {base}
+    """).fetchone()
+    scheduled, cancelled, diverted = row
+    if not scheduled:
+        return {}
+    return {"scheduled": scheduled, "cancelled": cancelled, "diverted": diverted,
+            "rate": round(cancelled / scheduled, 4)}
 
 
 def _weather_split(con, where: str) -> dict:
@@ -204,7 +231,8 @@ WHERE {where}
     evidence = con.execute(f"""
         SELECT flight_id, flight_date, carrier, flight_number, origin, dest,
                sched_dep_local, sched_arr_local, arr_delay_min,
-               origin_precip_mm, origin_wind_kph
+               origin_precip_mm,
+               round(origin_wind_ms::DOUBLE * 3.6, 1) AS origin_wind_kph
         FROM read_parquet('{PARQUET}', hive_partitioning=true)
         WHERE {where}
         ORDER BY flight_date
@@ -215,6 +243,7 @@ WHERE {where}
             "origin_precip_mm", "origin_wind_kph"]
 
     weather = _weather_split(con, where)
+    cancellation = _cancellation_rate(con, where)
 
     # Two things decide how much to trust a range, and sample size is only one.
     # Rungs 0 and 1 keep the traveller's carrier and month, so a big N there is
@@ -259,7 +288,7 @@ WHERE {where}
         match_description=description, n=n, confidence=confidence, message=message,
         p10=round(p10), p50=round(p50), p90=round(p90),
         evidence=[dict(zip(cols, row)) for row in evidence],
-        weather=weather, ladder_trace=trace, sql=sql,
+        weather=weather, cancellation=cancellation, ladder_trace=trace, sql=sql,
     )
 
 

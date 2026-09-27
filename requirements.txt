@@ -1,7 +1,12 @@
+# Application runtime
+streamlit
 duckdb
 pyarrow
-google-genai
-groq
+numpy
 pydantic
-streamlit
+groq
+google-genai
+xgboost
+
+# Tests
 pytest

@@ -23,7 +23,13 @@ from murphy.config import load_env                                    # noqa: E4
 from murphy.parser import (                                           # noqa: E402
     FlightLeg, Itinerary, parse, to_query_args, validate,
 )
-from murphy.retrieval import COMFORTABLE, MINIMUM, Query, retrieve    # noqa: E402
+import duckdb                                                         # noqa: E402
+from murphy.retrieval import (                                        # noqa: E402
+    COMFORTABLE, MINIMUM, PARQUET, Query, retrieve,
+)
+from murphy.graph import (                                            # noqa: E402
+    MAX_LAYOVER_MIN, MIN_CONNECTION_MIN, plan_routes,
+)
 
 FIXTURES = ROOT / "tests" / "fixtures"
 
@@ -72,16 +78,40 @@ def test_2_small_sample_is_flagged():
 
 
 @needs_data
-def test_3_missing_month_widens_and_says_so():
-    """March is absent from the source data, so the ladder must widen."""
+def test_3_every_month_is_covered():
+    """March used to be missing entirely. On BTS data it is not.
+
+    This test previously asserted the opposite: the Kaggle-preprocessed source
+    had no March at all, so a March query had to fall down the ladder. Moving to
+    BTS closed that hole, and this now guards against a source that silently
+    drops a month again.
+    """
     r = retrieve(Query("BOS", "ATL", "DL", 3, 6))
     assert r.ok
-    assert r.rung_index > 0
-    assert r.ladder_trace[0]["n"] == 0            # exact match found nothing
-    assert r.query["carrier"] == "DL"
-    assert "any month" in r.match_description
-    # Widening kept the traveller's airline rather than dropping it first.
-    assert "any carrier" not in r.match_description
+    assert r.rung_index == 0, "March should now answer on an exact match"
+    assert r.n >= MINIMUM
+
+    con = duckdb.connect()
+    months = {row[0] for row in con.execute(
+        f"SELECT DISTINCT month FROM read_parquet('{PARQUET}', hive_partitioning=true)"
+    ).fetchall()}
+    assert months == set(range(1, 13)), f"missing months: {sorted(set(range(1, 13)) - months)}"
+
+
+@needs_data
+def test_3b_cancellations_are_excluded_from_the_range_and_reported():
+    """A cancelled flight never arrived, so it is not evidence about lateness.
+
+    It is still something the traveller should know, so it is counted and
+    reported separately -- which the previous dataset made impossible, having
+    had every cancelled flight stripped out of it.
+    """
+    r = retrieve(Query("BOS", "ATL", "DL", 11, 6))
+    assert r.ok
+    assert r.cancellation, "cancellation rate should be reported"
+    assert r.cancellation["scheduled"] >= r.n          # some scheduled flights did not operate
+    assert 0.0 <= r.cancellation["rate"] <= 1.0
+    assert r.cancellation["cancelled"] + r.n <= r.cancellation["scheduled"] + r.cancellation["diverted"]
 
 
 @needs_data
@@ -231,3 +261,65 @@ def test_12_confirmation_to_range_end_to_end():
         # Every number traces to rows the traveller can look at.
         assert len(result.evidence) > 0
         assert all("flight_id" in row for row in result.evidence)
+
+
+# ---------------------------------------------------------------------------
+# 13-16. Top-k route planning over the flight graph
+# ---------------------------------------------------------------------------
+
+@needs_data
+def test_13_planner_returns_distinct_alternatives():
+    """Top-k must be k real choices, not k near-duplicates."""
+    routes = plan_routes("BOS", "MCI", 11, 6, k=5)
+
+    assert len(routes) >= 3
+    keys = [(r.hub, r.carriers) for r in routes]
+    assert len(keys) == len(set(keys))          # no two routes are the same option
+    assert any(r.stops == 0 for r in routes)    # a nonstop exists on this pair
+    assert any(r.stops == 1 for r in routes)    # and so does a connection
+
+
+@needs_data
+def test_14_every_leg_is_backed_by_evidence():
+    """A route is only as grounded as its legs. No leg may be unevidenced."""
+    for route in plan_routes("BOS", "MCI", 11, 6, k=5):
+        assert route.legs
+        for leg in route.legs:
+            assert leg.p10 <= leg.p50 <= leg.p90
+            assert leg.evidence_n >= MINIMUM
+            assert leg.confidence in {"ok", "limited", "thin"}
+        # Door-to-door time is what routes are compared on, and it must be real.
+        assert route.typical_total_min > 0
+        assert route.tail_total_min >= route.typical_total_min
+
+
+@needs_data
+def test_15_travellers_own_route_is_identified_exactly_once():
+    """Marking the booked route must not match every similar alternative."""
+    routes = plan_routes("BOS", "MCI", 11, 6, k=5, travellers_route=("DL", None))
+    mine = [r for r in routes if r.is_travellers_route]
+
+    assert len(mine) == 1, "a booked nonstop matched more than one alternative"
+    assert mine[0].stops == 0
+    assert "DL" in mine[0].carriers
+
+
+@needs_data
+def test_16_connection_risk_comes_from_real_flights():
+    """FAILURE-ADJACENT CASE. Connection risk is counted, never modelled."""
+    routes = plan_routes("SFO", "BOS", 1, 7, k=5)
+    connecting = [r for r in routes if r.stops == 1]
+    assert connecting, "expected at least one one-stop itinerary on this pair"
+
+    for route in connecting:
+        assert route.layover_min >= MIN_CONNECTION_MIN
+        assert route.layover_min <= MAX_LAYOVER_MIN
+        assert 0.0 <= route.connection_risk <= 1.0
+        # The share must be drawn from a stated number of real flights.
+        assert route.connection_sample > 0
+
+
+@needs_data
+def test_17_unknown_airport_yields_no_route():
+    """FAILURE CASE. No path, no invented itinerary."""
+    assert plan_routes("BOS", "QQQ", 11, 6) == []

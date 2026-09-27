@@ -95,9 +95,15 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
 
+    # Partitioned by month, not origin. Every query filters on month, so pruning
+    # still works -- and it yields eleven files of a few MB rather than a
+    # thousand tiny ones, which is what makes the table committable to git and
+    # therefore what makes the application deployable and the repo runnable
+    # without the 1.7 GB source download.
     con.execute(f"""
         COPY ({BUILD}) TO '{OUT}'
-        (FORMAT PARQUET, PARTITION_BY (origin), OVERWRITE_OR_IGNORE, COMPRESSION ZSTD)
+        (FORMAT PARQUET, PARTITION_BY (month), OVERWRITE_OR_IGNORE,
+         COMPRESSION ZSTD, FILENAME_PATTERN 'flights_{{i}}')
     """)
 
     con.execute(f"CREATE VIEW out AS SELECT * FROM read_parquet('{OUT}/**/*.parquet', hive_partitioning=true)")
@@ -105,8 +111,8 @@ def main():
     n_ids = con.execute("SELECT count(DISTINCT flight_id) FROM out").fetchone()[0]
     size_mb = sum(p.stat().st_size for p in OUT.rglob("*.parquet")) / 1e6
 
-    print(f"\nWrote {n_out:,} rows across {len(list(OUT.iterdir()))} origin partitions, "
-          f"{size_mb:,.0f} MB")
+    print(f"\nWrote {n_out:,} rows across {len(list(OUT.iterdir()))} monthly partitions "
+          f"in {len(list(OUT.rglob('*.parquet')))} files, {size_mb:,.0f} MB")
     print(f"flight_id unique: {n_ids == n_out} ({n_ids:,} distinct)")
     if n_out != n_raw - n_drop:
         print(f"WARNING: expected {n_raw - n_drop:,} rows, got {n_out:,}")
