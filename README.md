@@ -16,6 +16,48 @@ end-user application.
 
 ---
 
+## Contents
+
+| Section | What it covers |
+|---|---|
+| [Who it is for](#who-it-is-for) | The target user, and who this is deliberately not for |
+| [What it does](#what-it-does) | The Challenge 2 feature, and the human–AI workflow end to end |
+| [When it will not answer](#when-it-will-not-answer) | The refusal path and how confidence is decided |
+| [Does a trained model beat looking things up?](#does-a-trained-model-beat-looking-things-up) | **Result** — the forecaster against a retrieval baseline |
+| [Does risk-aware routing beat scheduled time?](#does-risk-aware-routing-beat-sorting-by-scheduled-time) | **Result** — routing against a booking-site baseline |
+| [Running it](#running-it) | Installation, execution, command-line tools, deployment |
+| [Data](#data) | Sources, sizes, how to rebuild, and why this source replaced the first one |
+| [Known limitations](#known-limitations) | What the system cannot do, and why |
+| [Architecture](#architecture) | The pipeline from raw records to grounded output |
+| [The AI capability](#the-ai-capability) | What the LLM does, what retrieval does, what the model does |
+| [Human review](#human-review) | The four points where the traveller changes the outcome |
+| [Testing](#testing) | Eighteen cases, five of them failures |
+| [Layout](#layout) | Where everything lives in the repository |
+| [What remains](#what-remains) | Next steps |
+
+<details>
+<summary><strong>Where each required item is documented</strong></summary>
+
+| Required | Where |
+|---|---|
+| What the application does | [What it does](#what-it-does) |
+| Target user | [Who it is for](#who-it-is-for) |
+| Human–AI workflow | [What it does](#what-it-does) · [Human review](#human-review) |
+| Data used | [Data](#data) |
+| Data-processing pipeline | [Architecture](#architecture) |
+| AI capability | [The AI capability](#the-ai-capability) |
+| Retrieval / RAG design | [The AI capability](#the-ai-capability) |
+| How to run it | [Running it](#running-it) |
+| Deployment instructions | [Running it → Deploying](#deploying) |
+| How it was tested | [Testing](#testing) · [`tests/RESULTS.md`](tests/RESULTS.md) |
+| Example results | [Both result sections](#does-a-trained-model-beat-looking-things-up) |
+| Current limitations | [Known limitations](#known-limitations) |
+| Next steps | [What remains](#what-remains) |
+
+</details>
+
+---
+
 ## Who it is for
 
 **Anyone flying with something to lose** — a connection to make, a meeting to
