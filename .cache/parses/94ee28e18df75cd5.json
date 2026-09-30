@@ -1,0 +1,18 @@
+{
+  "model": "groq/openai/gpt-oss-120b",
+  "itinerary": {
+    "legs": [
+      {
+        "carrier": "AS",
+        "flight_number": 1284,
+        "origin": "SEA",
+        "dest": "MCI",
+        "departure_date": "2026-08-12",
+        "scheduled_departure_local": "09:20",
+        "scheduled_arrival_local": "15:05",
+        "operated_by": null
+      }
+    ],
+    "confirmation_code": "KXJ8PQ"
+  }
+}

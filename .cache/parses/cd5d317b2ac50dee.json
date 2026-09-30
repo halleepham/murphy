@@ -1,0 +1,7 @@
+{
+  "model": "groq/openai/gpt-oss-120b",
+  "itinerary": {
+    "legs": [],
+    "confirmation_code": null
+  }
+}

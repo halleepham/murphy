@@ -1,0 +1,18 @@
+{
+  "model": "groq/openai/gpt-oss-120b",
+  "itinerary": {
+    "legs": [
+      {
+        "carrier": "AA",
+        "flight_number": 4512,
+        "origin": "ORD",
+        "dest": "LGA",
+        "departure_date": "2026-01-12",
+        "scheduled_departure_local": "07:30",
+        "scheduled_arrival_local": "10:45",
+        "operated_by": "Envoy Air as American Eagle"
+      }
+    ],
+    "confirmation_code": "JQ7RTK"
+  }
+}

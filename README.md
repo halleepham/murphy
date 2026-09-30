@@ -163,7 +163,9 @@ by hand.
 
 A running instance is at
 [murphy-challenge-2.streamlit.app](https://murphy-challenge-2.streamlit.app/),
-which needs nothing installed and no key of your own.
+which needs nothing installed and no key of your own. The five bundled samples
+are answered from a committed parse cache, so they work even when the language
+model is unreachable; entering flights by hand never calls a model at all.
 
 It deploys from this repository unmodified, because `src/murphy/config.py` looks
 for configuration in the process environment, then Streamlit secrets, then

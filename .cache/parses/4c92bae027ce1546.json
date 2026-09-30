@@ -1,0 +1,18 @@
+{
+  "model": "groq/openai/gpt-oss-120b",
+  "itinerary": {
+    "legs": [
+      {
+        "carrier": "UA",
+        "flight_number": 328,
+        "origin": null,
+        "dest": null,
+        "departure_date": null,
+        "scheduled_departure_local": "07:45",
+        "scheduled_arrival_local": null,
+        "operated_by": null
+      }
+    ],
+    "confirmation_code": null
+  }
+}
