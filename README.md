@@ -104,8 +104,9 @@ SQL over rows you can open and read.
 
 **It refuses when the evidence is too thin.** The fallback ladder widens the
 match in stated steps, a wider departure window, then any month, then any
-carrier, and reports which step answered. Below ten comparable flights it
-declines. Confidence also tracks *match quality*, not just sample size: an answer
+carrier, and reports which step answered. It stops at the first step holding at
+least ten comparable flights; if even the widest step holds fewer than five, it
+refuses outright. Confidence also tracks *match quality*, not just sample size: an answer
 built from 196 loosely matched flights is reported as **less** trustworthy than
 one from 29 exact matches, because reaching that number meant giving up your
 airline and your month.
