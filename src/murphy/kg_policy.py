@@ -106,6 +106,7 @@ def parse_dashboard(path: Path = DASHBOARD) -> tuple[list[dict], list[dict]]:
 
             clauses.append({
                 "clause_id": clause_id,
+                "name": f"{key} ({disruption})",
                 "source": "DOT Airline Customer Service Dashboard",
                 "section": caption,
                 "commitment": key,
@@ -216,6 +217,7 @@ def parse_contracts(folder: Path = None) -> tuple[list[dict], list[dict]]:
         page_number, text = found
         clauses.append({
             "clause_id": spec["clause_id"],
+            "name": f"{spec['carrier']} {spec['section'].split('(')[0].strip()}",
             "source": contract["title"],
             "section": f"{spec['section']} (p{page_number})",
             "commitment": "contract_terms",

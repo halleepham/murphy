@@ -136,7 +136,13 @@ def flights(con, days=SEED_DAYS) -> list[dict]:
             delay_late_aircraft_min                       AS outcome_delay_late_aircraft_min,
             (delay_carrier_min IS NOT NULL)               AS causes_reported,
             origin || '-' || dest || '-' || carrier || '-'
-                   || CAST(sched_dep_hour AS VARCHAR)     AS service_id
+                   || CAST(sched_dep_hour AS VARCHAR)     AS service_id,
+            -- A display caption. Neo4j's viewers default to a property called `name`
+            -- and offer nothing else when none exists, so without this every node in
+            -- a screenshot is captioned with its element id. Display only: never read
+            -- by a query, and every value in it is reachable through an edge.
+            carrier || CAST(flight_number AS VARCHAR) || ' '
+                    || origin || '-' || dest           AS name
         FROM read_parquet('{PARQUET}', hive_partitioning=true)
         WHERE carrier IN {_carriers_sql()} AND flight_date IN {_days_sql(days)}
     """)
@@ -175,7 +181,9 @@ def services(con, days=SEED_DAYS) -> list[dict]:
                                    THEN (f.arr_delay_min >= 15)::INT END), 2) AS pct_late15,
             round(100.0 * avg(f.cancelled), 2)                       AS cancellation_rate,
             CAST(median(f.sched_dep_minutes) AS INT)                 AS median_dep_minutes,
-            CAST(median(f.sched_duration_min) AS INT)                AS median_duration_min
+            CAST(median(f.sched_duration_min) AS INT)                AS median_duration_min,
+            any_value(f.carrier) || ' ' || any_value(f.origin) || '-' || any_value(f.dest)
+                || ' ' || CAST(any_value(f.sched_dep_hour) AS VARCHAR) || 'h' AS name
         FROM read_parquet('{PARQUET}', hive_partitioning=true) f
         JOIN touched t
           ON f.origin = t.origin AND f.dest = t.dest
@@ -193,6 +201,7 @@ def aircraft(con, days=SEED_DAYS) -> list[dict]:
     """
     return _rows(con, f"""
         SELECT tail_number,
+               tail_number        AS name,
                arg_max(carrier, n) AS operator
         FROM (
             SELECT tail_number, carrier, count(*) AS n
@@ -231,7 +240,7 @@ def airports(con, days=SEED_DAYS) -> list[dict]:
             WHERE carrier IN {_carriers_sql()} AND cancelled = 0
             GROUP BY 1
         )
-        SELECT s.iata, any_value(s.tz) AS timezone,
+        SELECT s.iata, s.iata AS name, any_value(s.tz) AS timezone,
                any_value(y.n_departures) AS n_departures,
                any_value(y.median_dep_delay) AS median_dep_delay,
                any_value(y.pct_late15) AS pct_late15
@@ -295,6 +304,7 @@ def weather(con, days=SEED_DAYS) -> list[dict]:
             FROM slice WHERE dest_visibility_m IS NOT NULL
         )
         SELECT iata || '-' || strftime(hour_utc, '%Y-%m-%dT%H') AS weather_id,
+               iata || ' ' || strftime(hour_utc, '%d %b %Hh')    AS name,
                iata, hour_utc,
                max(temp_c) AS temp_c, max(wind_ms) AS wind_ms,
                max(precip_mm) AS precip_mm, max(visibility_m) AS visibility_m,

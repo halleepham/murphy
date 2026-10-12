@@ -36,3 +36,6 @@ CLAUDE.md
 
 # Cached LLM parses -- avoids re-spending the free-tier daily quota
 .cache/
+
+# Slide deck -- regenerate rather than version a 1.7 MB binary
+challenge3_ai_design.pptx

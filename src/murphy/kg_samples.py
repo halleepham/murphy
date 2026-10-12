@@ -78,11 +78,14 @@ ITINERARIES = [
 
 
 def traveler_rows() -> list[dict]:
-    return [{k: v for k, v in t.items()} for t in TRAVELERS]
+    # `name` is a display caption -- see the note in kg_build.flights().
+    return [dict(t, name=t["traveler_id"].replace("sample-", "")) for t in TRAVELERS]
 
 
 def itinerary_rows() -> list[dict]:
-    return [{"itinerary_id": i["itinerary_id"], "n_stops": len(i["legs"]) - 1}
+    return [{"itinerary_id": i["itinerary_id"],
+             "name": i["itinerary_id"].replace("itin-", ""),
+             "n_stops": len(i["legs"]) - 1}
             for i in ITINERARIES]
 
 
