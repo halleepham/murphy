@@ -1,332 +1,217 @@
-# Murphy
+# Murphy — Challenge 3: Knowledge Graph
 
-**Will I land on time?**
+**Which flights fail for the same reason?**
 
-Murphy turns a booking confirmation into an arrival-delay *range* built from real
-historical flights, and shows you exactly which flights it used. When the
-evidence is too thin, it refuses to answer rather than guessing.
+Murphy forecasts flight disruption risk and states how much to trust its own forecast.
+Challenge 2 answered *"will I land on time?"* from a table of comparable flights.
+Challenge 3 builds the thing that table could never express: **how flights are
+connected to each other**, and therefore which ones break together.
 
-**Try it: [murphy-challenge-2.streamlit.app](https://murphy-challenge-2.streamlit.app/)**
+Course project for CS 5542 (Big Data Analytics and Applications), Fall 2026.
 
-![The forecast and its evidence](screenshots/v2/03_forecast.png)
+> **This branch is the Challenge 3 AI Design slice.** The Challenge 2 application —
+> parser, retrieval, forecast model, route planner and Streamlit interface — is tagged
+> [`challenge-2`](../../tree/challenge-2) and deployed at
+> [murphy-challenge-2.streamlit.app](https://murphy-challenge-2.streamlit.app/).
 
 ---
 
-## The project
+## Why a graph
 
-Murphy forecasts flight disruption risk and states how much to trust its own
-forecast. It is built for **anyone flying with something to lose**: a connection
-to make, a meeting to reach, a deadline that does not move. It is deliberately
-not built for airlines, who hold crew, gate, baggage and load data internally;
-passengers have only public data, and that asymmetry is the opportunity.
+The Challenge 2 report named a limitation it could not fix: *"flight legs are scored
+independently, so correlated delay at a shared hub is currently invisible."*
 
-The research claim behind the whole project is that *a forecasting system which
-knows when to distrust itself produces better decisions than one that is merely
-accurate.*
+A traveller stuck at Atlanta on 19 July 2024 trying to reach Newark had **nine
+alternatives**. A forecaster scoring each leg on its own shows nine options, each
+carrying some moderate risk. In fact **every one of them was flown by an aircraft
+already running 45+ minutes late**, and they arrived an average of **267 minutes**
+behind schedule. There was no escape, and nothing in a row-oriented store could say so.
 
-The full semester project covers forecasting, connection risk, a trust layer,
-rebooking and monitoring. **This repository is the Challenge 2 slice only:** the
-first working piece of the end-user application, answering one question.
-
-Course project for CS 5542 (Big Data Analytics and Applications), Fall 2026.
+Answering that question means walking backwards from every candidate flight to the
+aircraft that will operate it, and from that aircraft to where it currently is. That is
+a self-join nobody writes in SQL. It is two hops in a graph.
 
 ---
 
 ## Contents
 
-- [Layout](#layout)
-- [The Challenge 2 feature](#the-challenge-2-feature)
+- [The schema](#the-schema)
 - [Running it](#running-it)
-- [Data](#data)
-- [Pipeline and architecture](#pipeline-and-architecture)
-- [The AI capability](#the-ai-capability)
-- [Results](#results)
+- [The queries](#the-queries)
+- [Data and scope](#data-and-scope)
+- [Design decisions worth knowing](#design-decisions-worth-knowing)
 - [Testing](#testing)
-- [Limitations and what remains](#limitations-and-what-remains)
+- [Limitations](#limitations)
 
 ---
 
-## Layout
+## The schema
+
+**9 node types · 10 relationship types · 37,059 nodes · 117,489 relationships**
+
+| Node | Tier | What it is |
+|---|---|---|
+| `Flight` | Observed | one operated flight on the loaded day |
+| `Service` | Derived | route + carrier + hour, aggregated over the **whole year**, carrying p10/p50/p90 |
+| `Aircraft` | Observed | a tail number |
+| `Airport` | Observed | built from origin ∪ destination |
+| `Airline` | Observed | the nine US majors |
+| `Weather` | Observed | one airport-hour observation |
+| `PolicyClause` | Documented | a published commitment, with its source URL |
+| `Traveler` · `Itinerary` | Session | sample travellers; never real people |
 
 ```
-app/app.py              the Streamlit application
-src/murphy/
-  fetch_bts.py          download BTS On-Time Performance
-  fetch_isd.py          download and reduce NOAA observations
-  build_parquet_bts.py  join them into the queryable table
-  parser.py             confirmation text -> validated itinerary
-  retrieval.py          comparable-flight retrieval and the empirical range
-  graph.py              top-k route planning over the flight network
-  model.py              train the quantile model, compare against retrieval
-  forecast.py           serve the model for one flight
-  evaluate.py           risk-aware routing against scheduled-time routing
-  config.py             configuration lookup
-notebooks/              data verification and what it found
-tests/                  suite, fixtures, results, evaluations
-screenshots/v2/         the application in use
-data/processed/         the flight table and trained model (committed)
+(Traveler)-[:BOOKED]->(Itinerary)-[:CONTAINS]->(Flight)
+(Aircraft)-[:FLIES]->(Flight)-[:PRECEDES]->(Flight)
+(Flight)-[:INSTANCE_OF]->(Service)-[:OPERATED_BY]->(Airline)-[:PUBLISHES]->(PolicyClause)
+(Flight|Service)-[:DEPARTS_FROM|:ARRIVES_AT]->(Airport)<-[:OBSERVED_AT]-(Weather)
 ```
 
----
+**Provenance tiers are part of the schema, not documentation.** Observed data drives
+the forecast; Derived values are computed and labelled as such; Documented clauses are
+quoted with a citation and **never numerically combined**; Session data shapes the
+question but is never evidence. Folding a policy or a survey score into a risk number
+is the mistake the tiers exist to prevent.
 
-## The Challenge 2 feature
+**`CONNECTS_TO` is not stored.** Materialising every feasible connection cost 493,824
+edges on a single day, against a 400,000 relationship ceiling — and whether a
+connection holds is a *question about time*, not a fact. It is computed at query time:
 
-The traveler asks one question, **"Will I land on time?"**, and gets an answer
-they can check and correct.
-
-1. **An AI reads your confirmation** into structured fields, or you type them in
-   yourself. Anything it cannot find is left **null and asked for**, never
-   guessed. ([`01_landing`](screenshots/v2/01_landing.png),
-   [`11_missing_field`](screenshots/v2/11_missing_field.png))
-2. **You correct anything wrong.** Every field is editable and the results
-   update. ([`02_sidebar`](screenshots/v2/02_sidebar.png),
-   [`06_two_legs`](screenshots/v2/06_two_legs.png))
-3. **Retrieval finds comparable flights** on the same route, carrier, month and
-   departure hour, across 6.9 million 2024 records. You can open every row it
-   used, with the weather on the day and the exact SQL.
-   ([`04_evidence`](screenshots/v2/04_evidence.png),
-   [`05_provenance`](screenshots/v2/05_provenance.png))
-4. **Two independent forecasts**: the empirical range over those flights, and a
-   trained quantile model. Both are shown.
-   ([`03_forecast`](screenshots/v2/03_forecast.png))
-5. **Alternative routes**, ranked by reliability, speed or stops, with your own
-   route placed among them.
-   ([`07_routes`](screenshots/v2/07_routes.png),
-   [`08_route_evidence`](screenshots/v2/08_route_evidence.png))
-
-![Alternative routes, with the traveler's own route ranked](screenshots/v2/07_routes.png)
-
-Two rules shape everything the feature does.
-
-**The language model never produces a number.** It reads text and returns
-structured fields; that is its whole job. Every figure on screen is computed by
-SQL over rows you can open and read.
-
-**It refuses when the evidence is too thin.** The fallback ladder widens the
-match in stated steps, a wider departure window, then any month, then any
-carrier, and reports which step answered. It stops at the first step holding at
-least ten comparable flights; if even the widest step holds fewer than five, it
-refuses outright. Confidence also tracks *match quality*, not just sample size: an answer
-built from 196 loosely matched flights is reported as **less** trustworthy than
-one from 29 exact matches, because reaching that number meant giving up your
-airline and your month.
-
-![Refusing when there is no evidence](screenshots/v2/09_refusal.png)
-
-All twelve screenshots, including the failure cases, are in
-[`screenshots/v2/`](screenshots/v2/).
+```cypher
+MATCH (a:Flight {flight_id: $flight_id})-[:ARRIVES_AT]->(hub:Airport)
+      <-[:DEPARTS_FROM]-(b:Flight)
+WHERE b.sched_dep_utc >= a.sched_arr_utc + duration({minutes: 45})
+  AND b.sched_dep_utc <= a.sched_arr_utc + duration({hours: 4})
+RETURN b.flight_id,
+       duration.between(a.sched_arr_utc, b.sched_dep_utc).minutes AS slack_min,
+       EXISTS { (a)-[:PRECEDES]->(b) } AS same_aircraft
+```
 
 ---
 
 ## Running it
 
-Requires Python 3.10 or newer.
+A free [Neo4j Aura](https://console.neo4j.io) instance is enough — the graph uses 19%
+of its node cap and 31% of its relationship cap.
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
-# One free API key from https://console.groq.com -> API Keys
-cp .env.example .env        # paste your key into GROQ_API_KEY
+cp .env.example .env     # then paste in the four NEO4J_ values from Aura
+                         # note: Aura names the user and database after the
+                         # instance id, not "neo4j"
 
-# The flight table and the trained model are in the repository already
-.venv/bin/streamlit run app/app.py
+PYTHONPATH=src .venv/bin/python -m murphy.kg            # connection smoke test
+PYTHONPATH=src .venv/bin/python -m murphy.kg_build      # extraction counts, no writes
+PYTHONPATH=src .venv/bin/python -m murphy.kg_load       # build the graph (~20 s)
+PYTHONPATH=src .venv/bin/python -m murphy.kg_queries    # run every demo query
 ```
 
-Opens at `http://localhost:8501`. Pick a sample in the sidebar, or enter a flight
-by hand.
+The load is **idempotent** — every write is a `MERGE` on a key backed by a uniqueness
+constraint, so running it twice leaves the same graph rather than a doubled one.
+`--reset` wipes first; `--dry-run` reports counts without writing.
 
-### Command line
-
-```bash
-# Verify the raw data against its assumptions
-.venv/bin/python notebooks/01_schema_check.py
-
-# Query the retrieval layer
-.venv/bin/python src/murphy/retrieval.py --origin BOS --dest ATL \
-    --carrier DL --month 11 --hour 6 --json
-
-# Plan routes, with the traveler's own route ranked
-.venv/bin/python src/murphy/graph.py --origin BOS --dest MCI \
-    --month 11 --hour 6 --booked-carrier DL --via ATL
-
-# Parse a confirmation
-.venv/bin/python src/murphy/parser.py tests/fixtures/confirmation_synthetic.txt
-
-# Retrain the model and re-run the L1/L2 comparison (needs the full table)
-.venv/bin/python src/murphy/model.py
-
-# Compare risk-aware routing against scheduled-time routing
-.venv/bin/python src/murphy/evaluate.py
-```
-
-### Deployed
-
-A running instance is at
-[murphy-challenge-2.streamlit.app](https://murphy-challenge-2.streamlit.app/),
-which needs nothing installed and no key of your own. The five bundled samples
-are answered from a committed parse cache, so they work even when the language
-model is unreachable; entering flights by hand never calls a model at all.
-
-It deploys from this repository unmodified, because `src/murphy/config.py` looks
-for configuration in the process environment, then Streamlit secrets, then
-`.env`, so the same code runs locally and hosted.
+The 2024 flight table is committed, so a clone needs no download.
 
 ---
 
-## Data
+## The queries
 
-**Flights**: [US Bureau of Transportation Statistics, On-Time Performance](https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ&QO_fu146_anzr=b0-gvzr).
-13.7M flights across 2023 and 2024, 305 airports, 15 carriers, 6,337 tail numbers.
+`src/murphy/kg_queries.py` — all parameterised, none generated by a model.
 
-**Weather**: [NOAA Integrated Surface Database](https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database).
-8.0M hourly station observations, joined by airport and hour.
-
-**Committed:** 2024, 6,971,908 flights, 172 MB of Parquet. A clone runs without
-downloading anything.
-
-**To rebuild, or to get 2023 as well** (needed to retrain the model):
-
-```bash
-.venv/bin/python src/murphy/fetch_bts.py --years 2023 2024
-.venv/bin/python src/murphy/fetch_isd.py --years 2023 2024
-.venv/bin/python src/murphy/build_parquet_bts.py
-```
-
-The weather fetch streams: each station-year is downloaded, reduced to the fields
-needed, and deleted before the next one starts. Peak disk use is one 10 MB file.
-
-The project began on a Kaggle-preprocessed version of the same BTS records and
-moved off it after verification found four defects, including 213,203 flights
-that arrived before they departed and a missing month. Rebuilding from the
-primary source fixed all four while leaving the delay distribution unchanged,
-which is what says the rebuild is correct rather than merely different. The full
-account is in the Challenge 2 report.
-
----
-
-## Pipeline and architecture
-
-![The Challenge 2 system, end to end](figures/workflow.png)
-
-Two sources are joined into one queryable table, which three components read
-independently: SQL retrieval, the trained model, and the route planner. The
-language model sits outside that path entirely, turning text into a validated
-itinerary and nothing else. Every number reaching the traveler is computed by a
-tool over rows they can open.
-
-| Stage | What happens |
+| | Shows |
 |---|---|
-| **Ingest** | 24 monthly BTS files and 304 NOAA station-years, both streamed and reduced on the way in |
-| **Clean** | Drop negative-duration and duplicate records; keep cancelled and diverted flights rather than discarding them |
-| **Transform** | Local HHMM integers plus a per-airport timezone become real UTC instants; ISD's packed fields become typed columns |
-| **Join** | Weather attached at each end on the hour of departure and arrival, taking the *worst* condition in that hour rather than the mean |
-| **Store** | Parquet partitioned by month, sorted by origin and carrier so repeated strings compress; 6.9M rows in 172 MB |
-| **Serve** | DuckDB queries the files directly; no database server, no cluster, no load step |
+| **Q1 / Q2** | node and relationship creation |
+| **Q3** | `MATCH` a traveller's itinerary and its legs |
+| **Q4** | traverse a flight → its aircraft → that aircraft's whole day |
+| **Q5** | **multi-hop**: the rotation cascade |
+| **Q6** | **project-specific**: correlated failure |
+| `connection` | connection feasibility, derived |
+| `policy` | which published commitments apply to *this* disruption |
 
----
+**Q5 — the cascade.** One aircraft, five legs, 19 July 2024:
 
-## The AI capability
-
-| Component | Role |
-|---|---|
-| **LLM** (Groq, `openai/gpt-oss-120b`) | Parses confirmation text into a validated Pydantic schema. Nothing else. |
-| **Retrieval** | SQL and metadata filter over partitioned Parquet, with a disclosed fallback ladder. |
-| **Model** | XGBoost quantile regression, twelve features, trained against pinball loss. |
-| **Tools** | DuckDB computes every quantile, count, connection risk and weather split. |
-
-Retrieval here is **structured, not vector**, and that is deliberate. "BOS to ATL,
-Delta, November, morning" is exactly specifiable, so relational equality is the
-correct instrument; embeddings do not enforce it and would return BOS to ORD for
-BOS to ATL. Vector retrieval earns its place when the query becomes "a day like
-this one" and stops being specifiable.
-
-Two rules are enforced in code rather than trusted to the prompt:
-
-- **Missing means null.** City names are not converted to airport codes, because
-  "Chicago" could be ORD or MDW and resolving it would be a guess.
-- **Parsed values are checked against the data.** A carrier or airport absent
-  from the file is reported, not passed into a query.
-
----
-
-## Results
-
-**Does a trained model beat looking things up? Yes, by about 11%.**
-
-| | pinball loss | 80% coverage | median error | interval width |
+| Flight | | Arrival delay | Carrier | Late aircraft |
 |---|---|---|---|---|
-| Retrieval (L1) | 9.542 | 70.9% | 13.0 min | 59.0 min |
-| **Trained model (L2)** | **8.476** | **77.0%** | **10.9 min** | 59.2 min |
+| WN4854 | LBB→DAL | 0 | – | – |
+| WN4854 | DAL→MCO | −9 | – | – |
+| WN1547 | MCO→CMH | **+105** | **105** | 0 |
+| WN2637 | CMH→HOU | +115 | 2 | **106** |
+| WN2679 | HOU→MDW | +115 | 2 | **113** |
 
-Trained on 2023, scored on the 6,860,395 flights that operated in 2024. The width
-column is the one that matters: the model covers more outcomes without widening
-its interval to do it. Neither method is calibrated, and fixing that is future
-work. Full detail: [`tests/MODEL_COMPARISON.md`](tests/MODEL_COMPARISON.md).
+The aircraft starts the day clean, breaks on leg 3 with a *carrier* delay — consistent
+with the CrowdStrike outage that grounded flights that morning — and the next two legs
+inherit it. The graph traversal finds the propagation; **BTS's own cause codes confirm
+it independently.** The path is the explanation.
 
-**Does risk-aware routing beat sorting by scheduled time? It halves the
-missed-connection rate and costs about ten minutes.**
+**Q6 — correlated failure.** The nine Atlanta→Newark options described above, each with
+the upstream leg its aircraft was still flying. This is the query that justifies the
+graph.
 
-| | scheduled-time | Murphy |
-|---|---|---|
-| Missed connections | 75 (8.1%) | **39 (4.2%)** |
-| Median door-to-door | 315 min | 325 min |
-| Mean, a missed connection charged 4 h | 341 min | **340 min** |
+---
 
-Over 930 planning decisions on ten routes, ranking on 2023 and scoring on October
-2024. Once failures are charged the two are a dead heat, so the answer depends on
-how much a traveler hates missing a connection, which is a preference the data
-cannot settle. That is why the application exposes the objectives instead of
-choosing for them. Full method: [`tests/EVALUATION.md`](tests/EVALUATION.md).
+## Data and scope
+
+**BTS On-Time Performance + NOAA Integrated Surface Database**, 13.7M flights across
+2023–2024, rebuilt from primary sources during Challenge 2 after a preprocessed Kaggle
+version was found to have stripped cancellations, broken timestamps and a missing month.
+
+- **Carriers:** nine US majors — `AA DL UA WN AS B6 F9 G4 HA` — by **operating**
+  carrier. The rule is "the plane you are actually sitting on."
+  Spirit was removed after it ceased operations on 2 May 2026
+- **Seed day:** 19 July 2024, the CrowdStrike outage — 59.5% of mainline flights 15+
+  minutes late against a 7.6% baseline. A real cascade is what a graph is for
+- **Policy sources:** the DOT Airline Customer Service Dashboard (all nine carriers)
+  plus the Delta and Southwest contracts of carriage
+
+The graph is a **second index** over the same facts, not a replacement for the Parquet
+store. DuckDB answers *"what happened to flights like this one"* by aggregating millions
+of rows. Neo4j answers *"what is this flight connected to"* by traversing dozens of
+nodes. Neither does the other's job well.
+
+---
+
+## Design decisions worth knowing
+
+- **`Service` aggregates the whole year, not the loaded day.** At day grain it was
+  effectively 1:1 with `Flight` and carried no information
+- **Numbers are precomputed onto nodes.** An LLM narrating a retrieved subgraph cannot
+  derive a quantile from it and will invent one if it is missing
+- **Time is an indexed property, not a node.** An `Hour` node at a busy hub is a
+  supernode, and two flights sharing an hour is not a relationship
+- **Parameterised Cypher templates, never text-to-Cypher.** Three mistakes during this
+  build returned *wrong answers rather than errors*: a string timestamp concatenated
+  with a duration, a `count {}` subquery collapsed to 1 beside an aggregate, and an
+  unbound relationship drew disconnected nodes. A model generating Cypher has no error
+  signal to correct against
+- **A commitment a carrier declines is an absent edge**, not a property saying "No"
 
 ---
 
 ## Testing
 
 ```bash
-.venv/bin/pytest -q
+PYTHONPATH=src .venv/bin/python -m pytest tests/ -q     # 70 tests
 ```
 
-Eighteen cases, five of them failure cases: a route with no evidence, unusable
-airline and airport codes, a confirmation missing its airports, and text
-containing no flights at all.
-
-The suite runs from a fresh clone without failing. Tests that query the flight
-table skip with a stated reason until it is built, and the parser tests skip
-without an API key, so a missing prerequisite reads as `skipped` naming what is
-absent rather than as a wall of errors.
-
-Case-by-case reasoning: [`tests/RESULTS.md`](tests/RESULTS.md).
+Neo4j-dependent tests skip without a reachable instance. They assert behaviour rather
+than execution — that Q5 shows delay *growing* along the chain with BTS blaming late
+aircraft, that every `PRECEDES` edge is spatially continuous, that timestamps have not
+regressed to strings, and that no query hardcodes a sample value.
 
 ---
 
-## Limitations and what remains
+## Limitations
 
-**What it cannot do today**
-
-- **Neither forecast is calibrated.** An 80% interval should contain the outcome
-  80% of the time; both fall short, the retrieval baseline more than the model.
-- **Alternative routes may no longer be flown.** They are built from flights that
-  operated in the same month of 2024. Performance carries over well; the
-  continued existence of a service does not. Treat them as routings that tend to
-  work, not as flights you can book.
-- **Connections are constructed, not published**: a real arrival paired with a
-  real departure under a 45-minute minimum transfer, not a fare an airline sells.
-- **The model assumes typical weather.** No forecast exists for a flight months
-  away, so it predicts under median conditions for that airport and month. On a
-  bad day it will read optimistic.
-- **No fare data**, so cost never enters any ranking.
-- **Legs are scored independently**, so a late inbound to a hub is treated as
-  unrelated to everything else late at that hub.
-- **Guam and Pago Pago** have no weather station within 15 km and carry null
-  weather.
-
-**Next**
-
-- **Calibration** through conformal prediction, which needs a dedicated
-  calibration split.
-- **Cancellation as a prediction**, not just a reported rate. The data now
-  supports it.
-- **A time-expanded graph.** Connection feasibility depends on when the previous
-  leg actually arrived, and standard k-shortest-path tools cannot express a
-  constraint like that over a plain airport graph; the nodes have to carry time.
+- **Regional carriers are out of scope.** 86 airports and 1,152 routes are absent, so a
+  traveller connecting to a small city on a regional jet gets nothing
+- **One day is loaded.** Rotations are complete within it; chains crossing midnight are not
+- **One global 45-minute connection rule.** Real minimum connection times vary by
+  airport and terminal and we have no source for them
+- **Policy coverage is partial.** Four of the nine carriers block automated retrieval,
+  so contract clauses cover Delta and Southwest only. The DOT dashboard had to be saved
+  from a browser
+- **No GraphRAG yet.** The schema carries the filter keys a retriever will need, but
+  retrieval arrives at the Human–AI Co-Design stage
+- **No cancellation probability, no fare.** Cancellations are recorded but not predicted;
+  no fare data exists in any source currently used

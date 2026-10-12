@@ -8,5 +8,9 @@ groq
 google-genai
 xgboost
 
+# Knowledge graph (Challenge 3)
+neo4j
+pypdf
+
 # Tests
 pytest
