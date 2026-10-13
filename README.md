@@ -139,10 +139,19 @@ The 2024 flight table is committed, so a clone needs no download.
 | WN2637 | CMH→HOU | +115 | 2 | **106** |
 | WN2679 | HOU→MDW | +115 | 2 | **113** |
 
-The aircraft starts the day clean, breaks on leg 3 with a *carrier* delay — consistent
-with the CrowdStrike outage that grounded flights that morning — and the next two legs
-inherit it. The graph traversal finds the propagation; **BTS's own cause codes confirm
-it independently.** The path is the explanation.
+The aircraft flies two clean legs, then takes a 105-minute delay that BTS attributes
+entirely to **carrier** — its category for causes within the airline's control, such as
+crew, maintenance or fuelling. The next two legs inherit it, and BTS assigns 106 and 113
+minutes of *those* to **late aircraft**.
+
+The traversal finds the propagation; **the cause codes confirm it independently.** The
+path is the explanation.
+
+Two things this does *not* claim. BTS records the category, never the incident, so a
+carrier delay is not evidence of any particular cause — 19 July was a severe day
+network-wide, but Southwest was among the least affected carriers on it, cancelling
+0.11% of its flights against a 0.68% baseline. And "starts clean" means within the
+loaded day; the graph holds one day, so an aircraft's earlier history is outside it.
 
 **Q6 — correlated failure.** The nine Atlanta→Newark options described above, each with
 the upstream leg its aircraft was still flying. This is the query that justifies the

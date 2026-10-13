@@ -10,7 +10,9 @@ something worth finding. Each one is a different shape of connection risk:
 
   * **cascade** — the headline. A connection scheduled with 115 minutes of slack that
     came down to 13, because the inbound aircraft had been running late since its
-    third leg of the day.
+    third leg within the loaded day. BTS attributes that leg's delay to "carrier",
+    which names a category -- causes inside the airline's control -- and never an
+    incident, so nothing here claims a particular cause.
   * **correlated** — both legs ran ~120 minutes late *together*, so the connection
     survived. Correlated delay is not always bad news, and a system that scores legs
     independently cannot tell the two cases apart.
