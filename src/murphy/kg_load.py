@@ -41,6 +41,15 @@ INDEXES = [
     "CREATE INDEX service_hour     IF NOT EXISTS FOR (s:Service) ON (s.sched_dep_hour)",
 ]
 
+# PolicyClause is the only node type carrying prose, and prose is the only thing a
+# traveller asks about in their own words. Without this index a question like "can I
+# get a hotel?" can only be answered by someone who already knows the property is
+# called commitment: "hotel".
+FULLTEXT = [
+    "CREATE FULLTEXT INDEX policy_text IF NOT EXISTS "
+    "FOR (c:PolicyClause) ON EACH [c.text, c.commitment]",
+]
+
 # origin, dest, service_id and tail_number are carried on the extracted Flight record
 # because the edges are built from them -- but they are not stored on the node.
 # DEPARTS_FROM, ARRIVES_AT, INSTANCE_OF and FLIES are the single source of truth, and
@@ -93,7 +102,7 @@ def load(days=kg_build.SEED_DAYS, reset: bool = False) -> tuple[int, int]:
                         break
 
             print("constraints and indexes ...")
-            for statement in CONSTRAINTS + INDEXES:
+            for statement in CONSTRAINTS + INDEXES + FULLTEXT:
                 s.run(statement)
 
             print("nodes:")

@@ -1,15 +1,17 @@
-# Murphy — Challenge 3: Knowledge Graph
+# Murphy — Challenge 3: Knowledge Graph + GraphRAG
 
 **Which flights fail for the same reason?**
 
 Murphy forecasts flight disruption risk and states how much to trust its own forecast.
 Challenge 2 answered *"will I land on time?"* from a table of comparable flights.
 Challenge 3 builds the thing that table could never express: **how flights are
-connected to each other**, and therefore which ones break together.
+connected to each other**, and therefore which ones break together — then puts a
+natural-language interface on top of it.
 
 Course project for CS 5542 (Big Data Analytics and Applications), Fall 2026.
 
-> **This branch is the Challenge 3 AI Design slice.** The Challenge 2 application —
+> **This branch covers both Challenge 3 stages** — the knowledge graph (AI Design)
+> and GraphRAG over it (Human–AI Co-Design). The Challenge 2 application —
 > parser, retrieval, forecast model, route planner and Streamlit interface — is tagged
 > [`challenge-2`](../../tree/challenge-2) and deployed at
 > [murphy-challenge-2.streamlit.app](https://murphy-challenge-2.streamlit.app/).
@@ -21,11 +23,12 @@ Course project for CS 5542 (Big Data Analytics and Applications), Fall 2026.
 The Challenge 2 report named a limitation it could not fix: *"flight legs are scored
 independently, so correlated delay at a shared hub is currently invisible."*
 
-A traveller stuck at Atlanta on 19 July 2024 trying to reach Newark had **nine
-alternatives**. A forecaster scoring each leg on its own shows nine options, each
-carrying some moderate risk. In fact **every one of them was flown by an aircraft
-already running 45+ minutes late**, and they arrived an average of **267 minutes**
-behind schedule. There was no escape, and nothing in a row-oriented store could say so.
+A traveller stuck at Atlanta on 19 July 2024 trying to reach Newark had **fifteen
+options**. A forecaster scoring each leg on its own sees fifteen separate moderate
+risks. Eight of them have an inbound flight inside the loaded day — and **every one of
+those eight was flown by an aircraft already 45+ minutes late**, arriving an average of
+**268 minutes** behind schedule against 212 for the rest. There was no escape, and
+nothing in a row-oriented store could say so.
 
 Answering that question means walking backwards from every candidate flight to the
 aircraft that will operate it, and from that aircraft to where it currently is. That is
@@ -36,6 +39,7 @@ a self-join nobody writes in SQL. It is two hops in a graph.
 ## Contents
 
 - [The schema](#the-schema)
+- [GraphRAG](#graphrag)
 - [Running it](#running-it)
 - [The queries](#the-queries)
 - [Data and scope](#data-and-scope)
@@ -86,6 +90,76 @@ RETURN b.flight_id,
        duration.between(a.sched_arr_utc, b.sched_dep_utc).minutes AS slack_min,
        EXISTS { (a)-[:PRECEDES]->(b) } AS same_aircraft
 ```
+
+---
+
+## GraphRAG
+
+> question → Neo4j retrieval → retrieved context → LLM → grounded answer
+
+`src/murphy/graphrag.py` puts a natural-language interface on the graph.
+`notebooks/03_graphrag.ipynb` demonstrates and evaluates it.
+
+```bash
+PYTHONPATH=src .venv/bin/python -m murphy.graphrag   # run every retriever
+jupyter notebook notebooks/03_graphrag.ipynb         # the demonstration
+```
+
+Needs `GROQ_API_KEY` in `.env` alongside the Neo4j values. The model is
+`openai/gpt-oss-120b`, the same one the Challenge 2 parser uses.
+
+### Four retrievers, one per shape of question
+
+| | Mechanism | Answers |
+|---|---|---|
+| `itinerary_lookup` | Cypher | one trip and its legs |
+| `aircraft_cascade` | Cypher, `[:PRECEDES*1..4]` | **multi-hop** — what a delay caused downstream |
+| `route_risk_summary` | Cypher aggregate | how many, how often, on average |
+| `policy_lookup` | full-text index + graph filters | what the traveller is owed |
+
+An LLM picks between them (`ToolsRetriever`). That is tool selection, **not** a
+verification loop — there is no retry, no evidence check and no abstention.
+
+### The graph narrows, the index reads
+
+The policy retriever is where the graph and the documents meet. Asking *"can I get a
+hotel or a meal"* **with** the flight's context returns five Delta clauses — Delta
+operated the flight, the delay was 186 minutes, and the cause was within the airline's
+control. Asking **without** it returns clauses from five other carriers and none from
+Delta: fluent, grounded in real published documents, and useless to this traveller.
+
+The graph supplies carrier, cause and delay; those three facts turn a text search into
+an answer. A 186-minute delay surfaces a meal commitment with a three-hour threshold;
+a 56-minute delay on the same trip does not.
+
+### Two rules, enforced rather than hoped for
+
+- **No Text2Cypher.** Queries are fixed, parameterised templates. Building this graph
+  produced three Cypher mistakes that returned *wrong answers rather than errors*, so a
+  model generating Cypher has nothing to correct against.
+- **The LLM never produces a value.** Every number in an answer is retrieved from the
+  graph, and the evidence travels beside the answer so it can be checked.
+
+### What the evaluation found
+
+Three things, all reproducible in the notebook:
+
+- **Grounding stops invention, not omission.** Q2's answer is numerically perfect and
+  still drops the carrier attribution and the clean first leg — the two things that
+  show the delay *originated* with the airline. Grounding constrains what a model may
+  say; it does not make it say the useful part.
+- **Ambiguous field names are a hallucination surface.** An aggregate called
+  `avg_arrival_delay_min` led the model to report 257 minutes for a subset whose true
+  average is 268. Every number it used *was* in the evidence. Renaming the field to say
+  which set it covers fixed it with no prompt change. *"The LLM never produces a
+  number"* is necessary, not sufficient — the retriever must return values that cannot
+  be misread.
+- **Routing is unstable, and grounding is the only backstop.** One out-of-scope
+  question, eight runs, temperature 0 — two different tools chosen. Every run still
+  answered *"the graph does not contain this"* rather than inventing a forecast. The
+  safety property survives a moving target, but it is a behaviour rather than a
+  guarantee: a verification step confirming the retrieved rows actually address the
+  question would make it a property.
 
 ---
 
@@ -153,9 +227,8 @@ network-wide, but Southwest was among the least affected carriers on it, cancell
 0.11% of its flights against a 0.68% baseline. And "starts clean" means within the
 loaded day; the graph holds one day, so an aircraft's earlier history is outside it.
 
-**Q6 — correlated failure.** The nine Atlanta→Newark options described above, each with
-the upstream leg its aircraft was still flying. This is the query that justifies the
-graph.
+**Q6 — correlated failure.** The Atlanta→Newark options described above, each with the
+upstream leg its aircraft was still flying. This is the query that justifies the graph.
 
 ---
 
@@ -200,13 +273,15 @@ nodes. Neither does the other's job well.
 ## Testing
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m pytest tests/ -q     # 70 tests
+PYTHONPATH=src .venv/bin/python -m pytest tests/ -q           # 86 tests
+MURPHY_LLM_TESTS=1 PYTHONPATH=src .venv/bin/python -m pytest tests/ -q   # + 2 LLM tests
 ```
 
-Neo4j-dependent tests skip without a reachable instance. They assert behaviour rather
-than execution — that Q5 shows delay *growing* along the chain with BTS blaming late
-aircraft, that every `PRECEDES` edge is spatially continuous, that timestamps have not
-regressed to strings, and that no query hardcodes a sample value.
+Neo4j-dependent tests skip without a reachable instance, and the two that spend API
+calls are opt-in. They assert behaviour rather than execution — that every `PRECEDES`
+edge is spatially continuous, that timestamps have not regressed to strings, that no
+query hardcodes a sample value, that narrowing a policy search really does reduce it to
+one carrier, and that every aggregate names the set it covers.
 
 ---
 
@@ -220,7 +295,9 @@ regressed to strings, and that no query hardcodes a sample value.
 - **Policy coverage is partial.** Four of the nine carriers block automated retrieval,
   so contract clauses cover Delta and Southwest only. The DOT dashboard had to be saved
   from a browser
-- **No GraphRAG yet.** The schema carries the filter keys a retriever will need, but
-  retrieval arrives at the Human–AI Co-Design stage
+- **Routing is unstable and unverified.** Tool selection only — no retry, evidence
+  check or abstention, and the same question can route differently between runs
+- **Four fixed retrievers.** An unanticipated question routes to the nearest one and is
+  answered confidently from the wrong evidence, or refused
 - **No cancellation probability, no fare.** Cancellations are recorded but not predicted;
   no fare data exists in any source currently used

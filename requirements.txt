@@ -10,7 +10,14 @@ xgboost
 
 # Knowledge graph (Challenge 3)
 neo4j
+neo4j-graphrag[openai]
 pypdf
+
+# Notebook (Challenge 3 Human-AI Co-Design). Not needed to run the app or the
+# retrieval layer -- only to execute notebooks/03_graphrag.ipynb.
+jupyter
+nbconvert
+ipykernel
 
 # Tests
 pytest

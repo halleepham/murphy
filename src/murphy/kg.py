@@ -10,6 +10,7 @@ Credentials come from .env (see .env.example). Aura names the database and the u
 after the instance id rather than 'neo4j', so nothing here assumes those defaults.
 """
 
+import logging
 import os
 
 from .config import load_env
@@ -64,6 +65,12 @@ def driver():
     _trust_system_certificates()
     from neo4j import GraphDatabase  # imported late: SSL_CERT_FILE must be set first
 
+    # Neo4j 5.27 reports db.index.fulltext.queryNodes as deprecated in favour of
+    # SEARCH, which is newer than this instance's default Cypher version, so the call
+    # stays. The notice arrives on a logger rather than as a warning, and it is long
+    # enough to bury real output in a notebook. Only this one logger is quietened;
+    # errors and everything else still surface.
+    logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
     cfg = settings()
     return GraphDatabase.driver(cfg["uri"], auth=(cfg["user"], cfg["password"]))
 
