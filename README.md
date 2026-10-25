@@ -1,4 +1,4 @@
-# Murphy — Challenge 3: Knowledge Graph + GraphRAG
+# Murphy — Challenge 3: Knowledge Graph + GraphRAG + GNN
 
 **Which flights fail for the same reason?**
 
@@ -10,8 +10,9 @@ natural-language interface on top of it.
 
 Course project for CS 5542 (Big Data Analytics and Applications), Fall 2026.
 
-> **This branch covers both Challenge 3 stages** — the knowledge graph (AI Design)
-> and GraphRAG over it (Human–AI Co-Design). The Challenge 2 application —
+> **This branch covers all three Challenge 3 stages** — the knowledge graph (AI
+> Design), GraphRAG over it, and a GNN ranker on top of that (both Human–AI
+> Co-Design). The Challenge 2 application —
 > parser, retrieval, forecast model, route planner and Streamlit interface — is tagged
 > [`challenge-2`](../../tree/challenge-2) and deployed at
 > [murphy-challenge-2.streamlit.app](https://murphy-challenge-2.streamlit.app/).
@@ -40,6 +41,7 @@ a self-join nobody writes in SQL. It is two hops in a graph.
 
 - [The schema](#the-schema)
 - [GraphRAG](#graphrag)
+- [The GNN](#the-gnn)
 - [Running it](#running-it)
 - [The queries](#the-queries)
 - [Data and scope](#data-and-scope)
@@ -52,6 +54,10 @@ a self-join nobody writes in SQL. It is two hops in a graph.
 ## The schema
 
 **9 node types · 10 relationship types · 37,059 nodes · 117,489 relationships**
+
+The GNN stage adds one label and two relationship types to this same graph without
+changing anything already here, taking it to 12 relationship types and 147,881
+relationships. [See below](#what-the-gnn-needed-from-the-graph).
 
 | Node | Tier | What it is |
 |---|---|---|
@@ -163,10 +169,130 @@ Three things, all reproducible in the notebook:
 
 ---
 
+## The GNN
+
+> candidate flights → one round of message passing → a ranked list, with the rotation
+> chain behind each score
+
+The graph answers *"which of these fail together"* only if a human reads the rows. The
+GNN asks whether a model can learn that structure instead, and the honest answer here
+is **no — for a reason worth more than a win.**
+
+`notebooks/04_gnn.ipynb` is the executed demonstration. `04_gnn_ablation.py` reproduces
+every number below.
+
+### The task is ranking, not forecasting
+
+A traveller asks *"will this get me there by 18:40"*, and the same flight is relevant
+for a late deadline and irrelevant for an early one. So the model scores a **pair** —
+`s(flight, slack)`, where slack is the minutes of margin the query allows. Set slack to
+15 minutes and the score becomes ordinary lateness prediction, so forecasting is a
+special case rather than a second model.
+
+**Scope is Southwest only.** Across all nine carriers, carrier alone nearly separates
+the classes — Delta 91.9% late against Alaska 19.5% on the seed day — so a model can
+memorise the carrier, score well, and learn nothing from structure. One carrier leaves
+headroom to measure what the graph adds.
+
+### What the GNN needed from the graph
+
+`src/murphy/kg_congestion.py`, additive and idempotent. No existing node, relationship,
+property or query was modified.
+
+| | Before | After | Cap |
+|---|---|---|---|
+| Nodes | 37,059 | 37,059 | 19% of 200,000 |
+| Relationships | 117,489 | **147,881** | **37%** of 400,000 |
+
+- `:AirportHour` added as a **second label** on 2,843 existing `Weather` nodes, carrying
+  scheduled departures, arrivals and movements
+- **15,194** `DEPARTS_IN` and **15,198** `ARRIVES_IN` edges
+
+A second label rather than a rename, because renaming `Weather` would have invalidated
+the loader, the queries, the schema diagram and 13 screenshots. Neo4j nodes carry many
+labels.
+
+### One architecture at two depths
+
+`Ranker(layers=0)` is an MLP on a flight's own features. `Ranker(layers=1)` adds one
+round of GraphSAGE message passing over the rotation chain and the airport-hour.
+**Nothing else differs**, so the comparison isolates the convolution rather than the
+capacity.
+
+Depth is 1 by correctness, not preference: a second hop would reach flights that had
+not yet departed when this one was due out.
+
+### The ablation — 5 seeds, Southwest test window, slack 15 min
+
+| Rung | AUC | ± | AUPRC | Recall@3 origin |
+|---|---|---|---|---|
+| G0 baseline rate | 0.650 | — | 0.557 | 0.199 |
+| **G1 MLP** | **0.792** | 0.011 | 0.695 | 0.258 |
+| G2a rotation rule | 0.659 | — | 0.570 | 0.199 |
+| G2b congestion rule | 0.589 | — | 0.492 | 0.182 |
+| G3 GraphSAGE | 0.791 | 0.016 | 0.688 | 0.245 |
+
+No-skill AUPRC is 0.421.
+
+**Learning beats the hand-set rules decisively** — 0.792 against the rotation rule the
+system ships today at 0.659 and the congestion rule at 0.589. That is a result for
+Murphy independent of any GNN, and it is the largest and most stable finding here.
+
+**Structure adds nothing.** G3 and G1 are indistinguishable, well inside one standard
+deviation. The GNN is not kept.
+
+### Why not — and it is this project's own rule
+
+Zeroing the inbound-delay feature, so the graph is the only remaining route to rotation
+information:
+
+| | AUC @15, 5 seeds |
+|---|---|
+| G1 MLP, inbound delay as a feature | 0.792 ±0.011 |
+| G3 GNN, inbound delay as a feature | 0.791 ±0.016 |
+| G1 MLP, feature removed | 0.545 ±0.013 |
+| G3 GNN, feature removed | 0.533 ±0.007 |
+
+The inbound aircraft's delay carries **essentially all** the predictive signal — hour,
+duration, distance, airport and weather together are worth almost nothing on this day.
+And the graph does not recover it: G3 without the feature is no better than G1 without
+it.
+
+The reason is exact. `outcome_*` properties are excluded from features by standing rule,
+so an inbound flight's node vector holds **no delay information at all**. There is
+literally nothing delay-related on the graph for message passing to carry. The rotation
+signal reaches the model only through an explicitly masked upstream feature — which is a
+*feature*, not a traversal.
+
+So the finding is not "GNNs do not help." It is that **the provenance discipline which
+makes Murphy's forecasts trustworthy is exactly what leaves the GNN nothing to
+propagate.** That is not an argument for relaxing the rule. It is an argument for giving
+the graph structural signals that are not outcomes — congestion propagating between
+airports, two-leg rotation chains, connection feasibility. Each lives in the topology
+rather than on a node, which is the only place a GNN can earn its keep.
+
+Worth noting what survives the negative result: the GNN is the **only** method in the
+ablation where two candidates' scores are not computed independently. Both read from the
+same `AirportHour` node, so a bad hour moves them together. The mechanism for correlated
+risk is right; message passing adding signal is what failed.
+
+### Two defects the measurement caught
+
+- **A single-seed result reversed on reseeding.** The first run had the GNN ahead. Five
+  seeds showed the gap was inside the noise.
+- **A missing `LayerNorm` surfaced only when the explanation was built.** Asking the
+  model to explain one real flight exposed instability that code review and evaluation
+  both missed. Every number reported before the fix was re-measured after it, and two
+  conclusions changed.
+
+Three of this project's defects — two Cypher errors, the single-seed result, and this
+one — were invisible to review and surfaced only when something was built to be
+*displayed*.
+
 ## Running it
 
 A free [Neo4j Aura](https://console.neo4j.io) instance is enough — the graph uses 19%
-of its node cap and 31% of its relationship cap.
+of its node cap, and 31% of its relationship cap before the GNN stage or 37% after.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -180,6 +306,27 @@ PYTHONPATH=src .venv/bin/python -m murphy.kg_build      # extraction counts, no 
 PYTHONPATH=src .venv/bin/python -m murphy.kg_load       # build the graph (~20 s)
 PYTHONPATH=src .venv/bin/python -m murphy.kg_queries    # run every demo query
 ```
+
+The GNN stage needs two more steps and a separate requirements file, kept out of
+`requirements.txt` so the deployed app does not pull ~200 MB of PyTorch it never
+imports:
+
+```bash
+.venv/bin/pip install -r requirements-gnn.txt
+
+PYTHONPATH=src .venv/bin/python -m murphy.kg_congestion  # add :AirportHour + 2 edge types
+PYTHONPATH=src .venv/bin/python -m murphy.gnn_export     # export the WN subgraph
+PYTHONPATH=src .venv/bin/python -m murphy.gnn_features   # features, labels, split, guards
+PYTHONPATH=src .venv/bin/python notebooks/04_gnn_ablation.py   # the five rungs, 5 seeds
+jupyter notebook notebooks/04_gnn.ipynb                  # the demonstration
+```
+
+The ablation trains 20 models and takes a few minutes, so its output is committed to
+[`results/`](results/) — the measured numbers are readable without running anything.
+
+The pins are not free choices: this is an x86_64 Mac, PyTorch dropped Intel macOS
+builds after 2.2.2, and that build was compiled against NumPy 1.x — which is why
+`requirements.txt` pins `numpy<2`.
 
 The load is **idempotent** — every write is a `MERGE` on a key backed by a uniqueness
 constraint, so running it twice leaves the same graph rather than a doubled one.
@@ -273,7 +420,7 @@ nodes. Neither does the other's job well.
 ## Testing
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m pytest tests/ -q           # 86 tests
+PYTHONPATH=src .venv/bin/python -m pytest tests/ -q           # 85 tests
 MURPHY_LLM_TESTS=1 PYTHONPATH=src .venv/bin/python -m pytest tests/ -q   # + 2 LLM tests
 ```
 
@@ -299,5 +446,8 @@ one carrier, and that every aggregate names the set it covers.
   check or abstention, and the same question can route differently between runs
 - **Four fixed retrievers.** An unanticipated question routes to the nearest one and is
   answered confidently from the wrong evidence, or refused
+- **The GNN is a measured negative.** One round of message passing matches a plain MLP,
+  because the provenance rule keeps outcomes off the nodes. It is demonstrated and
+  evaluated, not shipped
 - **No cancellation probability, no fare.** Cancellations are recorded but not predicted;
   no fare data exists in any source currently used
