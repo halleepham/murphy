@@ -1,0 +1,98 @@
+{
+  "horizons": [
+    1,
+    3,
+    6
+  ],
+  "airports": 100,
+  "horizon_1h": {
+    "P0 baseline (own history + time of day)": {
+      "r2": 0.5213,
+      "test_rows": 207618
+    },
+    "P1a flow neighbours, flat (06's version)": {
+      "r2": 0.5448,
+      "test_rows": 207130
+    },
+    "P1b flow neighbours, travel-time lagged": {
+      "r2": 0.5411,
+      "test_rows": 207107
+    },
+    "P2  flat + arrivals landing here": {
+      "r2": 0.6425,
+      "test_rows": 206255
+    },
+    "P3  flat + inbound aircraft already late": {
+      "r2": 0.5441,
+      "test_rows": 207020
+    },
+    "P4  flat + weather and scheduled traffic": {
+      "r2": 0.5459,
+      "test_rows": 206428
+    },
+    "P5  everything, on the flat base": {
+      "r2": 0.6413,
+      "test_rows": 205447
+    }
+  },
+  "horizon_3h": {
+    "P0 baseline (own history + time of day)": {
+      "r2": 0.4061,
+      "test_rows": 180308
+    },
+    "P1a flow neighbours, flat (06's version)": {
+      "r2": 0.4528,
+      "test_rows": 180249
+    },
+    "P1b flow neighbours, travel-time lagged": {
+      "r2": 0.4364,
+      "test_rows": 179762
+    },
+    "P2  flat + arrivals landing here": {
+      "r2": 0.4685,
+      "test_rows": 178778
+    },
+    "P3  flat + inbound aircraft already late": {
+      "r2": 0.4525,
+      "test_rows": 180176
+    },
+    "P4  flat + weather and scheduled traffic": {
+      "r2": 0.4533,
+      "test_rows": 179628
+    },
+    "P5  everything, on the flat base": {
+      "r2": 0.4674,
+      "test_rows": 178089
+    }
+  },
+  "horizon_6h": {
+    "P0 baseline (own history + time of day)": {
+      "r2": 0.2839,
+      "test_rows": 138229
+    },
+    "P1a flow neighbours, flat (06's version)": {
+      "r2": 0.3429,
+      "test_rows": 137033
+    },
+    "P1b flow neighbours, travel-time lagged": {
+      "r2": 0.3141,
+      "test_rows": 137599
+    },
+    "P2  flat + arrivals landing here": {
+      "r2": 0.3494,
+      "test_rows": 135534
+    },
+    "P3  flat + inbound aircraft already late": {
+      "r2": 0.3438,
+      "test_rows": 136993
+    },
+    "P4  flat + weather and scheduled traffic": {
+      "r2": 0.3434,
+      "test_rows": 136528
+    },
+    "P5  everything, on the flat base": {
+      "r2": 0.3499,
+      "test_rows": 134993
+    }
+  }
+}
