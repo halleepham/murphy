@@ -2,11 +2,25 @@
 streamlit
 duckdb
 pyarrow
-numpy
+# Pinned <2 for the GNN work: PyTorch dropped x86_64 macOS builds after 2.2.2, and
+# 2.2.2 was compiled against NumPy 1.x, so torch.from_numpy fails under NumPy 2.
+# neo4j-graphrag declares numpy>=2 but runs correctly on 1.26 (verified).
+numpy<2
 pydantic
 groq
 google-genai
 xgboost
+
+# Knowledge graph (Challenge 3)
+neo4j
+neo4j-graphrag[openai]
+pypdf
+
+# Notebook (Challenge 3 Human-AI Co-Design). Not needed to run the app or the
+# retrieval layer -- only to execute notebooks/03_graphrag.ipynb.
+jupyter
+nbconvert
+ipykernel
 
 # Tests
 pytest

@@ -1,0 +1,10 @@
+# GNN work only (Challenge 3, GNN-enhanced GraphRAG). Kept out of requirements.txt so
+# the deployed app does not pull ~200 MB of PyTorch it never imports.
+#
+# Versions are not free choices. This is an x86_64 Mac, and PyTorch dropped Intel macOS
+# builds after 2.2.2 -- there is no newer version to install. torch_geometric 2.8's
+# generated `propagate` is incompatible with torch 2.2, so it is pinned back to 2.5.3.
+#
+#   .venv/bin/pip install -r requirements-gnn.txt
+torch==2.2.2
+torch_geometric==2.5.3
