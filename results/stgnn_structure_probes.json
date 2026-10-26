@@ -6,215 +6,1079 @@
   ],
   "airports": 100,
   "horizon_1h": {
-    "P0 baseline (own history + time of day)": {
-      "r2": 0.5214,
-      "gain": 0.0
+    "all test days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.5213,
+        "gain": 0.0,
+        "rmse": 0.1371
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.5462,
+        "gain": 0.0249,
+        "rmse": 0.1335
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.5427,
+        "gain": 0.0213,
+        "rmse": 0.134
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.6472,
+        "gain": 0.1259,
+        "rmse": 0.1177
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.5473,
+        "gain": 0.026,
+        "rmse": 0.1333
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.5468,
+        "gain": 0.0255,
+        "rmse": 0.1334
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.5436,
+        "gain": 0.0223,
+        "rmse": 0.1339
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.5506,
+        "gain": 0.0293,
+        "rmse": 0.1328
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.5498,
+        "gain": 0.0285,
+        "rmse": 0.133
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.552,
+        "gain": 0.0307,
+        "rmse": 0.1326
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.5527,
+        "gain": 0.0313,
+        "rmse": 0.1325
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.55,
+        "gain": 0.0286,
+        "rmse": 0.1329
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.6485,
+        "gain": 0.1272,
+        "rmse": 0.1175
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.5396,
+        "gain": 0.0182,
+        "rmse": 0.1345
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.5465,
+        "gain": 0.0251,
+        "rmse": 0.1335
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.5519,
+        "gain": 0.0306,
+        "rmse": 0.1327
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.6487,
+        "gain": 0.1274,
+        "rmse": 0.1175
+      },
+      "_rows": 178657,
+      "_mean_late_share": 0.2456
     },
-    "P1a flow neighbours, flat (06's version)": {
-      "r2": 0.5462,
-      "gain": 0.0249
+    "worst 5% of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.4895,
+        "gain": 0.0,
+        "rmse": 0.1695
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.5419,
+        "gain": 0.0524,
+        "rmse": 0.1605
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.5263,
+        "gain": 0.0368,
+        "rmse": 0.1633
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.6408,
+        "gain": 0.1513,
+        "rmse": 0.1422
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.5424,
+        "gain": 0.0529,
+        "rmse": 0.1605
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.5433,
+        "gain": 0.0538,
+        "rmse": 0.1603
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.5363,
+        "gain": 0.0468,
+        "rmse": 0.1615
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.548,
+        "gain": 0.0584,
+        "rmse": 0.1595
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.548,
+        "gain": 0.0585,
+        "rmse": 0.1595
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.5494,
+        "gain": 0.0598,
+        "rmse": 0.1592
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.55,
+        "gain": 0.0605,
+        "rmse": 0.1591
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.5475,
+        "gain": 0.058,
+        "rmse": 0.1596
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.6427,
+        "gain": 0.1532,
+        "rmse": 0.1418
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.5305,
+        "gain": 0.041,
+        "rmse": 0.1625
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.5437,
+        "gain": 0.0542,
+        "rmse": 0.1602
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.5492,
+        "gain": 0.0597,
+        "rmse": 0.1593
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.6437,
+        "gain": 0.1542,
+        "rmse": 0.1416
+      },
+      "_rows": 9041,
+      "_mean_late_share": 0.469
     },
-    "P1b flow neighbours, travel-time lagged": {
-      "r2": 0.5427,
-      "gain": 0.0213
+    "worst 25% of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.5129,
+        "gain": 0.0,
+        "rmse": 0.1595
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.5443,
+        "gain": 0.0313,
+        "rmse": 0.1542
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.5376,
+        "gain": 0.0247,
+        "rmse": 0.1554
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.647,
+        "gain": 0.134,
+        "rmse": 0.1358
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.5449,
+        "gain": 0.032,
+        "rmse": 0.1541
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.5451,
+        "gain": 0.0322,
+        "rmse": 0.1541
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.5448,
+        "gain": 0.0319,
+        "rmse": 0.1542
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.5534,
+        "gain": 0.0404,
+        "rmse": 0.1527
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.5512,
+        "gain": 0.0383,
+        "rmse": 0.1531
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.5534,
+        "gain": 0.0405,
+        "rmse": 0.1527
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.5546,
+        "gain": 0.0417,
+        "rmse": 0.1525
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.5507,
+        "gain": 0.0378,
+        "rmse": 0.1532
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.649,
+        "gain": 0.136,
+        "rmse": 0.1354
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.5338,
+        "gain": 0.0208,
+        "rmse": 0.156
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.5454,
+        "gain": 0.0324,
+        "rmse": 0.1541
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.554,
+        "gain": 0.041,
+        "rmse": 0.1526
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.6498,
+        "gain": 0.1369,
+        "rmse": 0.1352
+      },
+      "_rows": 45394,
+      "_mean_late_share": 0.3739
     },
-    "P2  flat + arrivals landing here": {
-      "r2": 0.6472,
-      "gain": 0.1259
-    },
-    "P3  flat + inbound aircraft already late": {
-      "r2": 0.5473,
-      "gain": 0.026
-    },
-    "P4  flat + weather and scheduled traffic": {
-      "r2": 0.5468,
-      "gain": 0.0255
-    },
-    "P6a geographic neighbours only, 300 km": {
-      "r2": 0.5436,
-      "gain": 0.0223
-    },
-    "P6b geographic neighbours only, 750 km": {
-      "r2": 0.5507,
-      "gain": 0.0293
-    },
-    "P6c geographic neighbours only, 1500 km": {
-      "r2": 0.5499,
-      "gain": 0.0285
-    },
-    "P7a flat flow + geography, 300 km": {
-      "r2": 0.5521,
-      "gain": 0.0307
-    },
-    "P7b flat flow + geography, 750 km": {
-      "r2": 0.5527,
-      "gain": 0.0313
-    },
-    "P7c flat flow + geography, 1500 km": {
-      "r2": 0.55,
-      "gain": 0.0286
-    },
-    "P8  flow + geography + arrivals": {
-      "r2": 0.6485,
-      "gain": 0.1272
-    },
-    "P9a national mean only (no graph)": {
-      "r2": 0.5396,
-      "gain": 0.0182
-    },
-    "P9b flat flow + national mean": {
-      "r2": 0.5465,
-      "gain": 0.0251
-    },
-    "P9c geography 750 km + national mean": {
-      "r2": 0.5519,
-      "gain": 0.0305
-    },
-    "P5  everything, on the flat base": {
-      "r2": 0.6487,
-      "gain": 0.1274
+    "calm half of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.2652,
+        "gain": 0.0,
+        "rmse": 0.1215
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.3122,
+        "gain": 0.047,
+        "rmse": 0.1175
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.3085,
+        "gain": 0.0433,
+        "rmse": 0.1178
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.4577,
+        "gain": 0.1925,
+        "rmse": 0.1043
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.3144,
+        "gain": 0.0492,
+        "rmse": 0.1173
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.3123,
+        "gain": 0.0471,
+        "rmse": 0.1175
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.2976,
+        "gain": 0.0324,
+        "rmse": 0.1188
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.311,
+        "gain": 0.0458,
+        "rmse": 0.1176
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.3136,
+        "gain": 0.0483,
+        "rmse": 0.1174
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.3164,
+        "gain": 0.0512,
+        "rmse": 0.1172
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.3169,
+        "gain": 0.0517,
+        "rmse": 0.1171
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.3148,
+        "gain": 0.0496,
+        "rmse": 0.1173
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.4591,
+        "gain": 0.1939,
+        "rmse": 0.1042
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.3042,
+        "gain": 0.0389,
+        "rmse": 0.1182
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.3117,
+        "gain": 0.0465,
+        "rmse": 0.1176
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.3149,
+        "gain": 0.0496,
+        "rmse": 0.1173
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.4581,
+        "gain": 0.1929,
+        "rmse": 0.1043
+      },
+      "_rows": 86900,
+      "_mean_late_share": 0.1673
     },
     "_common_test_rows": 178657
   },
   "horizon_3h": {
-    "P0 baseline (own history + time of day)": {
-      "r2": 0.4046,
-      "gain": 0.0
+    "all test days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.4045,
+        "gain": 0.0,
+        "rmse": 0.1557
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.453,
+        "gain": 0.0484,
+        "rmse": 0.1492
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.4356,
+        "gain": 0.0311,
+        "rmse": 0.1516
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.4692,
+        "gain": 0.0647,
+        "rmse": 0.147
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.4543,
+        "gain": 0.0498,
+        "rmse": 0.1491
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.4531,
+        "gain": 0.0486,
+        "rmse": 0.1492
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.4388,
+        "gain": 0.0343,
+        "rmse": 0.1512
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.4543,
+        "gain": 0.0497,
+        "rmse": 0.1491
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.4562,
+        "gain": 0.0517,
+        "rmse": 0.1488
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.4594,
+        "gain": 0.0549,
+        "rmse": 0.1484
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.4608,
+        "gain": 0.0562,
+        "rmse": 0.1482
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.4572,
+        "gain": 0.0526,
+        "rmse": 0.1487
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.4744,
+        "gain": 0.0699,
+        "rmse": 0.1463
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.4398,
+        "gain": 0.0352,
+        "rmse": 0.151
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.4536,
+        "gain": 0.0491,
+        "rmse": 0.1492
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.4582,
+        "gain": 0.0537,
+        "rmse": 0.1485
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.4745,
+        "gain": 0.07,
+        "rmse": 0.1463
+      },
+      "_rows": 160247,
+      "_mean_late_share": 0.263
     },
-    "P1a flow neighbours, flat (06's version)": {
-      "r2": 0.453,
-      "gain": 0.0484
+    "worst 5% of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.2807,
+        "gain": 0.0,
+        "rmse": 0.193
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.3761,
+        "gain": 0.0954,
+        "rmse": 0.1798
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.3364,
+        "gain": 0.0557,
+        "rmse": 0.1854
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.3898,
+        "gain": 0.1091,
+        "rmse": 0.1778
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.377,
+        "gain": 0.0963,
+        "rmse": 0.1797
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.3767,
+        "gain": 0.0961,
+        "rmse": 0.1797
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.3592,
+        "gain": 0.0786,
+        "rmse": 0.1822
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.3872,
+        "gain": 0.1065,
+        "rmse": 0.1782
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.3893,
+        "gain": 0.1086,
+        "rmse": 0.1779
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.3853,
+        "gain": 0.1046,
+        "rmse": 0.1784
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.3891,
+        "gain": 0.1084,
+        "rmse": 0.1779
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.3845,
+        "gain": 0.1039,
+        "rmse": 0.1786
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.3992,
+        "gain": 0.1185,
+        "rmse": 0.1764
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.3585,
+        "gain": 0.0779,
+        "rmse": 0.1823
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.3795,
+        "gain": 0.0988,
+        "rmse": 0.1793
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.3897,
+        "gain": 0.109,
+        "rmse": 0.1778
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.4005,
+        "gain": 0.1198,
+        "rmse": 0.1762
+      },
+      "_rows": 8128,
+      "_mean_late_share": 0.4969
     },
-    "P1b flow neighbours, travel-time lagged": {
-      "r2": 0.4356,
-      "gain": 0.031
+    "worst 25% of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.3299,
+        "gain": 0.0,
+        "rmse": 0.1848
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.395,
+        "gain": 0.0651,
+        "rmse": 0.1756
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.3681,
+        "gain": 0.0382,
+        "rmse": 0.1795
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.4137,
+        "gain": 0.0838,
+        "rmse": 0.1729
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.3959,
+        "gain": 0.066,
+        "rmse": 0.1755
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.3955,
+        "gain": 0.0656,
+        "rmse": 0.1755
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.3821,
+        "gain": 0.0522,
+        "rmse": 0.1775
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.4032,
+        "gain": 0.0734,
+        "rmse": 0.1744
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.4041,
+        "gain": 0.0742,
+        "rmse": 0.1743
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.4059,
+        "gain": 0.076,
+        "rmse": 0.174
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.4087,
+        "gain": 0.0788,
+        "rmse": 0.1736
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.4027,
+        "gain": 0.0729,
+        "rmse": 0.1745
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.4228,
+        "gain": 0.093,
+        "rmse": 0.1715
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.3722,
+        "gain": 0.0423,
+        "rmse": 0.1789
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.3978,
+        "gain": 0.0679,
+        "rmse": 0.1752
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.4056,
+        "gain": 0.0757,
+        "rmse": 0.1741
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.424,
+        "gain": 0.0941,
+        "rmse": 0.1714
+      },
+      "_rows": 40888,
+      "_mean_late_share": 0.4003
     },
-    "P2  flat + arrivals landing here": {
-      "r2": 0.4692,
-      "gain": 0.0647
-    },
-    "P3  flat + inbound aircraft already late": {
-      "r2": 0.4544,
-      "gain": 0.0498
-    },
-    "P4  flat + weather and scheduled traffic": {
-      "r2": 0.4531,
-      "gain": 0.0486
-    },
-    "P6a geographic neighbours only, 300 km": {
-      "r2": 0.4388,
-      "gain": 0.0343
-    },
-    "P6b geographic neighbours only, 750 km": {
-      "r2": 0.4543,
-      "gain": 0.0497
-    },
-    "P6c geographic neighbours only, 1500 km": {
-      "r2": 0.4562,
-      "gain": 0.0517
-    },
-    "P7a flat flow + geography, 300 km": {
-      "r2": 0.4594,
-      "gain": 0.0548
-    },
-    "P7b flat flow + geography, 750 km": {
-      "r2": 0.4608,
-      "gain": 0.0562
-    },
-    "P7c flat flow + geography, 1500 km": {
-      "r2": 0.4572,
-      "gain": 0.0526
-    },
-    "P8  flow + geography + arrivals": {
-      "r2": 0.4745,
-      "gain": 0.0699
-    },
-    "P9a national mean only (no graph)": {
-      "r2": 0.4398,
-      "gain": 0.0352
-    },
-    "P9b flat flow + national mean": {
-      "r2": 0.4536,
-      "gain": 0.049
-    },
-    "P9c geography 750 km + national mean": {
-      "r2": 0.4582,
-      "gain": 0.0537
-    },
-    "P5  everything, on the flat base": {
-      "r2": 0.4746,
-      "gain": 0.07
+    "calm half of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.1165,
+        "gain": 0.0,
+        "rmse": 0.1364
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.2098,
+        "gain": 0.0933,
+        "rmse": 0.129
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.1846,
+        "gain": 0.0682,
+        "rmse": 0.131
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.229,
+        "gain": 0.1126,
+        "rmse": 0.1274
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.213,
+        "gain": 0.0965,
+        "rmse": 0.1287
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.2088,
+        "gain": 0.0924,
+        "rmse": 0.1291
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.168,
+        "gain": 0.0516,
+        "rmse": 0.1323
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.1958,
+        "gain": 0.0793,
+        "rmse": 0.1301
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.2058,
+        "gain": 0.0894,
+        "rmse": 0.1293
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.2132,
+        "gain": 0.0967,
+        "rmse": 0.1287
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.2141,
+        "gain": 0.0977,
+        "rmse": 0.1286
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.2122,
+        "gain": 0.0958,
+        "rmse": 0.1288
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.2323,
+        "gain": 0.1158,
+        "rmse": 0.1271
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.1945,
+        "gain": 0.0781,
+        "rmse": 0.1302
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.2083,
+        "gain": 0.0918,
+        "rmse": 0.1291
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.2085,
+        "gain": 0.092,
+        "rmse": 0.1291
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.2312,
+        "gain": 0.1147,
+        "rmse": 0.1272
+      },
+      "_rows": 77747,
+      "_mean_late_share": 0.1784
     },
     "_common_test_rows": 160247
   },
   "horizon_6h": {
-    "P0 baseline (own history + time of day)": {
-      "r2": 0.2797,
-      "gain": 0.0
+    "all test days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.2797,
+        "gain": 0.0,
+        "rmse": 0.1779
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.3494,
+        "gain": 0.0697,
+        "rmse": 0.1691
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.323,
+        "gain": 0.0432,
+        "rmse": 0.1725
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.3562,
+        "gain": 0.0765,
+        "rmse": 0.1682
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.3504,
+        "gain": 0.0707,
+        "rmse": 0.169
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.349,
+        "gain": 0.0693,
+        "rmse": 0.1691
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.3199,
+        "gain": 0.0401,
+        "rmse": 0.1729
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.3408,
+        "gain": 0.0611,
+        "rmse": 0.1702
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.3481,
+        "gain": 0.0683,
+        "rmse": 0.1693
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.3549,
+        "gain": 0.0752,
+        "rmse": 0.1684
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.3558,
+        "gain": 0.076,
+        "rmse": 0.1683
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.3524,
+        "gain": 0.0727,
+        "rmse": 0.1687
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.3611,
+        "gain": 0.0814,
+        "rmse": 0.1676
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.3313,
+        "gain": 0.0516,
+        "rmse": 0.1714
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.3496,
+        "gain": 0.0699,
+        "rmse": 0.1691
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.3509,
+        "gain": 0.0712,
+        "rmse": 0.1689
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.3607,
+        "gain": 0.081,
+        "rmse": 0.1676
+      },
+      "_rows": 121289,
+      "_mean_late_share": 0.286
     },
-    "P1a flow neighbours, flat (06's version)": {
-      "r2": 0.3494,
-      "gain": 0.0697
+    "worst 5% of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.0283,
+        "gain": 0.0,
+        "rmse": 0.2234
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.1731,
+        "gain": 0.1448,
+        "rmse": 0.2061
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.1132,
+        "gain": 0.0849,
+        "rmse": 0.2135
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.1776,
+        "gain": 0.1493,
+        "rmse": 0.2056
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.1729,
+        "gain": 0.1446,
+        "rmse": 0.2061
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.173,
+        "gain": 0.1447,
+        "rmse": 0.2061
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.1319,
+        "gain": 0.1036,
+        "rmse": 0.2112
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.1743,
+        "gain": 0.146,
+        "rmse": 0.206
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.1884,
+        "gain": 0.1601,
+        "rmse": 0.2042
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.1805,
+        "gain": 0.1522,
+        "rmse": 0.2052
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.1839,
+        "gain": 0.1556,
+        "rmse": 0.2048
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.1802,
+        "gain": 0.1519,
+        "rmse": 0.2052
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.1867,
+        "gain": 0.1584,
+        "rmse": 0.2044
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.1422,
+        "gain": 0.1139,
+        "rmse": 0.2099
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.1799,
+        "gain": 0.1516,
+        "rmse": 0.2053
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.1798,
+        "gain": 0.1515,
+        "rmse": 0.2053
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.1896,
+        "gain": 0.1613,
+        "rmse": 0.2041
+      },
+      "_rows": 6165,
+      "_mean_late_share": 0.5291
     },
-    "P1b flow neighbours, travel-time lagged": {
-      "r2": 0.323,
-      "gain": 0.0432
+    "worst 25% of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": 0.108,
+        "gain": 0.0,
+        "rmse": 0.2146
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.2085,
+        "gain": 0.1005,
+        "rmse": 0.2021
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.1648,
+        "gain": 0.0568,
+        "rmse": 0.2076
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.2152,
+        "gain": 0.1072,
+        "rmse": 0.2013
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.2089,
+        "gain": 0.1009,
+        "rmse": 0.2021
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.2085,
+        "gain": 0.1005,
+        "rmse": 0.2021
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.1743,
+        "gain": 0.0663,
+        "rmse": 0.2065
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.2056,
+        "gain": 0.0976,
+        "rmse": 0.2025
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.2149,
+        "gain": 0.1069,
+        "rmse": 0.2013
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.2193,
+        "gain": 0.1113,
+        "rmse": 0.2008
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.2213,
+        "gain": 0.1133,
+        "rmse": 0.2005
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.2151,
+        "gain": 0.1071,
+        "rmse": 0.2013
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.2255,
+        "gain": 0.1175,
+        "rmse": 0.2
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.1738,
+        "gain": 0.0658,
+        "rmse": 0.2065
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.212,
+        "gain": 0.104,
+        "rmse": 0.2017
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.2137,
+        "gain": 0.1057,
+        "rmse": 0.2015
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.2264,
+        "gain": 0.1184,
+        "rmse": 0.1998
+      },
+      "_rows": 31129,
+      "_mean_late_share": 0.4349
     },
-    "P2  flat + arrivals landing here": {
-      "r2": 0.3562,
-      "gain": 0.0765
-    },
-    "P3  flat + inbound aircraft already late": {
-      "r2": 0.3504,
-      "gain": 0.0707
-    },
-    "P4  flat + weather and scheduled traffic": {
-      "r2": 0.349,
-      "gain": 0.0693
-    },
-    "P6a geographic neighbours only, 300 km": {
-      "r2": 0.3199,
-      "gain": 0.0401
-    },
-    "P6b geographic neighbours only, 750 km": {
-      "r2": 0.3408,
-      "gain": 0.0611
-    },
-    "P6c geographic neighbours only, 1500 km": {
-      "r2": 0.3481,
-      "gain": 0.0683
-    },
-    "P7a flat flow + geography, 300 km": {
-      "r2": 0.3549,
-      "gain": 0.0752
-    },
-    "P7b flat flow + geography, 750 km": {
-      "r2": 0.3558,
-      "gain": 0.076
-    },
-    "P7c flat flow + geography, 1500 km": {
-      "r2": 0.3524,
-      "gain": 0.0727
-    },
-    "P8  flow + geography + arrivals": {
-      "r2": 0.3611,
-      "gain": 0.0814
-    },
-    "P9a national mean only (no graph)": {
-      "r2": 0.3313,
-      "gain": 0.0516
-    },
-    "P9b flat flow + national mean": {
-      "r2": 0.3496,
-      "gain": 0.0699
-    },
-    "P9c geography 750 km + national mean": {
-      "r2": 0.3509,
-      "gain": 0.0712
-    },
-    "P5  everything, on the flat base": {
-      "r2": 0.3607,
-      "gain": 0.081
+    "calm half of days": {
+      "P0 baseline (own history + time of day)": {
+        "r2": -0.05,
+        "gain": 0.0,
+        "rmse": 0.1547
+      },
+      "P1a flow neighbours, flat (06's version)": {
+        "r2": 0.0908,
+        "gain": 0.1407,
+        "rmse": 0.144
+      },
+      "P1b flow neighbours, travel-time lagged": {
+        "r2": 0.0491,
+        "gain": 0.0991,
+        "rmse": 0.1472
+      },
+      "P2  flat + arrivals landing here": {
+        "r2": 0.0999,
+        "gain": 0.1498,
+        "rmse": 0.1432
+      },
+      "P3  flat + inbound aircraft already late": {
+        "r2": 0.0935,
+        "gain": 0.1434,
+        "rmse": 0.1438
+      },
+      "P4  flat + weather and scheduled traffic": {
+        "r2": 0.0893,
+        "gain": 0.1392,
+        "rmse": 0.1441
+      },
+      "P6a geographic neighbours only, 300 km": {
+        "r2": 0.0131,
+        "gain": 0.063,
+        "rmse": 0.15
+      },
+      "P6b geographic neighbours only, 750 km": {
+        "r2": 0.0516,
+        "gain": 0.1015,
+        "rmse": 0.147
+      },
+      "P6c geographic neighbours only, 1500 km": {
+        "r2": 0.0728,
+        "gain": 0.1227,
+        "rmse": 0.1454
+      },
+      "P7a flat flow + geography, 300 km": {
+        "r2": 0.0921,
+        "gain": 0.142,
+        "rmse": 0.1439
+      },
+      "P7b flat flow + geography, 750 km": {
+        "r2": 0.0924,
+        "gain": 0.1424,
+        "rmse": 0.1438
+      },
+      "P7c flat flow + geography, 1500 km": {
+        "r2": 0.0915,
+        "gain": 0.1415,
+        "rmse": 0.1439
+      },
+      "P8  flow + geography + arrivals": {
+        "r2": 0.1008,
+        "gain": 0.1507,
+        "rmse": 0.1432
+      },
+      "P9a national mean only (no graph)": {
+        "r2": 0.069,
+        "gain": 0.1189,
+        "rmse": 0.1457
+      },
+      "P9b flat flow + national mean": {
+        "r2": 0.0875,
+        "gain": 0.1374,
+        "rmse": 0.1442
+      },
+      "P9c geography 750 km + national mean": {
+        "r2": 0.082,
+        "gain": 0.132,
+        "rmse": 0.1447
+      },
+      "P5  everything, on the flat base": {
+        "r2": 0.0983,
+        "gain": 0.1482,
+        "rmse": 0.1434
+      },
+      "_rows": 58561,
+      "_mean_late_share": 0.1926
     },
     "_common_test_rows": 121289
   }

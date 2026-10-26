@@ -34,6 +34,14 @@ the table:
 Every feature is strictly past-observed relative to the target hour, except the
 scheduled departure count, which is known in advance by construction.
 
+**Every probe is also scored on bad days alone.** A pooled R2 over a whole year is
+dominated by ordinary hours, and this project exists for the days that are not
+ordinary. A structure worth building is one that helps while the network is breaking,
+so each block is scored again on the worst 5% and 25% of test days by national late
+share, on the calm half, and on the seed day itself. RMSE is reported alongside R2
+because R2 is normalised by the variance of whichever stratum it is computed on and so
+cannot be compared across them; gains *within* a stratum are comparable either way.
+
 **Every probe is scored on exactly the same rows.** A feature that is missing more
 often shrinks its own test set, and R2 is normalised by the variance of whatever set it
 is computed on, so blocks evaluated on different rows are not comparable. The valid-row
@@ -78,6 +86,10 @@ def ridge(X, y, lam=1.0):
 
 def r2(y, pred):
     return 1.0 - float(((y - pred) ** 2).sum()) / float(((y - y.mean()) ** 2).sum())
+
+
+def rmse(y, pred):
+    return float(np.sqrt(((y - pred) ** 2).mean()))
 
 
 def main() -> None:
@@ -242,6 +254,26 @@ def main() -> None:
     hod = np.array([h.hour for h in hours])
     cut = int(np.searchsorted(hours, dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)))
 
+    # Day strata for the bad-day evaluation. "Bad" is a property of the whole network,
+    # not of one airport, so the ranking is the national late share across every
+    # airport that day. Ranked within the test year only, so thresholds describe 2024.
+    day_of = np.array([h.date() for h in hours])
+    test_days = sorted({d for d in day_of[cut:].tolist()})
+    nat = {d: float(np.nanmean(share[:, day_of == d])) for d in test_days}
+    vals = np.array([nat[d] for d in test_days])
+    p95, p75, p50 = (float(np.nanpercentile(vals, q)) for q in (95, 75, 50))
+    SEED_DAY = dt.date(2024, 7, 19)
+    STRATA = {
+        "all test days": set(test_days),
+        "worst 5% of days": {d for d in test_days if nat[d] >= p95},
+        "worst 25% of days": {d for d in test_days if nat[d] >= p75},
+        "calm half of days": {d for d in test_days if nat[d] < p50},
+        "seed day 19 Jul 2024": {SEED_DAY},
+    }
+    print(f"  national late share: calm half below {p50:.3f}, worst 25% above "
+          f"{p75:.3f}, worst 5% above {p95:.3f}; "
+          f"seed day {nat.get(SEED_DAY, float('nan')):.3f}")
+
     # Each probe is the baseline plus one block of columns, so gains are comparable.
     # Keys must be unique per *matrix*, not per role: the shared-feature dictionary is
     # keyed by name, so two variants sharing a key silently collapse to one.
@@ -301,18 +333,38 @@ def main() -> None:
         col = {k: n for n, k in enumerate(keys)}
         print(f"    common rows: train {tr.sum():,}  test {te.sum():,}")
 
-        rows: dict = {}
-        base = None
+        # The target hour's day decides the stratum, since that is the hour forecast.
+        tgt_day = day_of[t + H]
+        masks = {nm: te & np.isin(tgt_day, list(days)) for nm, days in STRATA.items()}
+
+        # Fit once per block on the full training year, then score each stratum. The
+        # question is whether a structure helps more when it matters, not whether a
+        # model fitted only to bad days would do better.
+        preds: dict = {}
         for name, block in BLOCKS.items():
             X = base_X if not block else np.hstack(
                 [base_X, extras[:, [col[k] for k, _ in block]]])
             w = ridge(X[tr], y[tr])
-            score = r2(y[te], np.hstack([np.ones((int(te.sum()), 1)), X[te]]) @ w)
-            if base is None:
-                base = score
-            rows[name] = {"r2": round(score, 4), "gain": round(score - base, 4)}
-            gain = f"{score - base:+.4f}" if block else "  --  "
-            print(f"    {name:<42} R2 {score:+.4f}   gain {gain}")
+            preds[name] = np.hstack([np.ones((len(X), 1)), X]) @ w
+
+        rows: dict = {}
+        for nm, m in masks.items():
+            if m.sum() < 500:
+                print(f"    -- {nm}: only {m.sum():,} rows, skipped")
+                continue
+            print(f"    -- {nm}  n={m.sum():,}  mean late share {y[m].mean():.3f}")
+            base, out = None, {}
+            for name in BLOCKS:
+                score, err = r2(y[m], preds[name][m]), rmse(y[m], preds[name][m])
+                if base is None:
+                    base = score
+                out[name] = {"r2": round(score, 4), "gain": round(score - base, 4),
+                             "rmse": round(err, 4)}
+                gain = "  --  " if name.startswith("P0") else f"{score - base:+.4f}"
+                print(f"       {name:<42} R2 {score:+.4f}  gain {gain}  RMSE {err:.4f}")
+            out["_rows"] = int(m.sum())
+            out["_mean_late_share"] = round(float(y[m].mean()), 4)
+            rows[nm] = out
         rows["_common_test_rows"] = int(te.sum())
         results[f"horizon_{H}h"] = rows
 
