@@ -1,0 +1,118 @@
+{
+  "q1_adjacency": {
+    "effective_neighbours": {
+      "flow_annual": 26.9,
+      "geography_750km": 29.5,
+      "uniform": 99.0
+    },
+    "top5_mass": {
+      "flow_annual": 0.4401,
+      "geography_750km": 0.3673,
+      "uniform": 0.0505
+    },
+    "hour_specific_vs_annual_cosine": 0.61,
+    "hour_specific_vs_annual_cosine_min": 0.151,
+    "annual_vs_uniform_cosine": 0.443,
+    "feature_correlations": {
+      "flow_vs_national_mean": 0.9332,
+      "geography_vs_national_mean": 0.8628,
+      "flow_vs_hour_specific": 0.9525
+    },
+    "cells": 1217993
+  },
+  "q2_aggregation": {
+    "horizon_1h": {
+      "own history 3 lags (what T12 used)": {
+        "r2": 0.4671,
+        "gain": 0.0
+      },
+      "own history 6 lags": {
+        "r2": 0.4811,
+        "gain": 0.014
+      },
+      "3 lags + national mean": {
+        "r2": 0.4916,
+        "gain": 0.0245
+      },
+      "3 lags + flow MEAN (T12's H1a)": {
+        "r2": 0.4988,
+        "gain": 0.0318
+      },
+      "3 lags + top-5 neighbours, SEPARATE": {
+        "r2": 0.4912,
+        "gain": 0.0242
+      },
+      "3 lags + flow mean + top-5 separate": {
+        "r2": 0.4989,
+        "gain": 0.0318
+      },
+      "6 lags + flow mean + top-5 separate": {
+        "r2": 0.5051,
+        "gain": 0.038
+      },
+      "_test_rows": 131754
+    },
+    "horizon_3h": {
+      "own history 3 lags (what T12 used)": {
+        "r2": 0.3638,
+        "gain": 0.0
+      },
+      "own history 6 lags": {
+        "r2": 0.375,
+        "gain": 0.0112
+      },
+      "3 lags + national mean": {
+        "r2": 0.4046,
+        "gain": 0.0408
+      },
+      "3 lags + flow MEAN (T12's H1a)": {
+        "r2": 0.4171,
+        "gain": 0.0533
+      },
+      "3 lags + top-5 neighbours, SEPARATE": {
+        "r2": 0.4032,
+        "gain": 0.0394
+      },
+      "3 lags + flow mean + top-5 separate": {
+        "r2": 0.4169,
+        "gain": 0.053
+      },
+      "6 lags + flow mean + top-5 separate": {
+        "r2": 0.42,
+        "gain": 0.0562
+      },
+      "_test_rows": 112786
+    },
+    "horizon_6h": {
+      "own history 3 lags (what T12 used)": {
+        "r2": 0.2625,
+        "gain": 0.0
+      },
+      "own history 6 lags": {
+        "r2": 0.272,
+        "gain": 0.0095
+      },
+      "3 lags + national mean": {
+        "r2": 0.3164,
+        "gain": 0.054
+      },
+      "3 lags + flow MEAN (T12's H1a)": {
+        "r2": 0.3246,
+        "gain": 0.0621
+      },
+      "3 lags + top-5 neighbours, SEPARATE": {
+        "r2": 0.3038,
+        "gain": 0.0413
+      },
+      "3 lags + flow mean + top-5 separate": {
+        "r2": 0.3241,
+        "gain": 0.0616
+      },
+      "6 lags + flow mean + top-5 separate": {
+        "r2": 0.3259,
+        "gain": 0.0635
+      },
+      "_test_rows": 78249
+    }
+  }
+}
