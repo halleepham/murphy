@@ -42,6 +42,7 @@ a self-join nobody writes in SQL. It is two hops in a graph.
 - [The schema](#the-schema)
 - [GraphRAG](#graphrag)
 - [The GNN](#the-gnn)
+- [The STGNN that was not built](#the-stgnn-that-was-not-built)
 - [Running it](#running-it)
 - [The queries](#the-queries)
 - [Data and scope](#data-and-scope)
@@ -288,6 +289,65 @@ risk is right; message passing adding signal is what failed.
 Three of this project's defects — two Cypher errors, the single-seed result, and this
 one — were invisible to review and surfaced only when something was built to be
 *displayed*.
+
+## The STGNN that was not built
+
+The GNN section ends by naming what would be needed: structural signals that are not
+outcomes of the flight being scored. A spatio-temporal graph network supplies that
+through *time* — node features become a series of past observed delay per airport-hour —
+so it was the obvious next model. It was measured first and then abandoned.
+
+`notebooks/06_stgnn_diagnostic.py` · `07_stgnn_structure_probes.py` ·
+`08_stgnn_aggregation_probe.py`, results in `results/stgnn_*.json`. Every number below
+is R2 gain at a six-hour horizon over an airport's own recent lateness plus time of day,
+on a 100-airport hourly panel, trained on 2023 and tested on 2024.
+
+**Delay does propagate**, so the premise was sound: neighbouring airports beat own
+history at every horizon. What failed was the graph.
+
+| Lever | Gain |
+|---|---|
+| A national mean — **no graph at all** | **+0.0480** |
+| Rotation, per-aircraft | **+0.0248** |
+| Arrival lateness | +0.0131 |
+| **All graph structure beyond the national mean** | **+0.0071** |
+| Geographic adjacency | +0.0030 |
+| Six history lags instead of three | +0.0014 |
+
+**Airport-hour late share is nationally correlated, so any average over a neighbourhood
+lands on the national average.** The flow-graph feature correlates with a plain national
+mean at r = +0.933. Once the model knows how late the country is, the adjacency has
+almost nothing left to add.
+
+Two attempts to blame the construction rather than the data, both refuted:
+
+- **Is the adjacency too diffuse?** No — 26.9 effective neighbours of 99, with 44% of
+  the mass in the top five. An hour-specific adjacency differs sharply from the annual
+  one (row cosine 0.610) and produces a feature that correlates with it at +0.953.
+- **Is mean-pooling the bottleneck?** No, and this is decisive. Handing the model its
+  top-5 neighbours as *separate columns* scores **worse** than their mean (+0.0413
+  against +0.0621) and adds nothing on top of it. Neighbour identity carries no
+  information — so attention, multi-head convolution and a learned adjacency have
+  nothing to find.
+
+**One defect the measurement caught, and it reversed a conclusion.** `dep_utc` is the
+*scheduled* instant, so keying features to it reads the future: only **32.9% of late
+departures have actually pushed back by the end of their scheduled hour**, against 98%
+of on-time ones. The leak was selective on exactly the signal being predicted and was
+worth +0.15 R2 on the worst days. Rotation had been the one feature built with an
+observability guard, so it was the one honest feature in a set of inflated ones —
+correcting the others moved it from +0.0010 to the strongest lever in the table.
+
+So the finding is not "STGNNs do not work." It is that **at hourly airport-level
+aggregation the graph is worth about one scalar, and the mechanism that does carry
+delay — per-aircraft rotation — is a per-flight dependency an airport-level graph cannot
+express.** Published results in this area compare against historical average, ARIMA or a
+per-node LSTM with no access to system-wide state, which is most of what the graph was
+providing here.
+
+Airport-hour state survives as *features* at the per-flight unit. That keeps the
+property the detour was for: two options leaving the same airport in the same hour share
+a forecast input, so correlated risk still falls out of the design.
 
 ## Running it
 
