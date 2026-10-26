@@ -7,92 +7,215 @@
   "airports": 100,
   "horizon_1h": {
     "P0 baseline (own history + time of day)": {
-      "r2": 0.5213,
-      "test_rows": 207618
+      "r2": 0.5214,
+      "gain": 0.0
     },
     "P1a flow neighbours, flat (06's version)": {
-      "r2": 0.5448,
-      "test_rows": 207130
+      "r2": 0.5462,
+      "gain": 0.0249
     },
     "P1b flow neighbours, travel-time lagged": {
-      "r2": 0.5411,
-      "test_rows": 207107
+      "r2": 0.5427,
+      "gain": 0.0213
     },
     "P2  flat + arrivals landing here": {
-      "r2": 0.6425,
-      "test_rows": 206255
+      "r2": 0.6472,
+      "gain": 0.1259
     },
     "P3  flat + inbound aircraft already late": {
-      "r2": 0.5441,
-      "test_rows": 207020
+      "r2": 0.5473,
+      "gain": 0.026
     },
     "P4  flat + weather and scheduled traffic": {
-      "r2": 0.5459,
-      "test_rows": 206428
+      "r2": 0.5468,
+      "gain": 0.0255
+    },
+    "P6a geographic neighbours only, 300 km": {
+      "r2": 0.5436,
+      "gain": 0.0223
+    },
+    "P6b geographic neighbours only, 750 km": {
+      "r2": 0.5507,
+      "gain": 0.0293
+    },
+    "P6c geographic neighbours only, 1500 km": {
+      "r2": 0.5499,
+      "gain": 0.0285
+    },
+    "P7a flat flow + geography, 300 km": {
+      "r2": 0.5521,
+      "gain": 0.0307
+    },
+    "P7b flat flow + geography, 750 km": {
+      "r2": 0.5527,
+      "gain": 0.0313
+    },
+    "P7c flat flow + geography, 1500 km": {
+      "r2": 0.55,
+      "gain": 0.0286
+    },
+    "P8  flow + geography + arrivals": {
+      "r2": 0.6485,
+      "gain": 0.1272
+    },
+    "P9a national mean only (no graph)": {
+      "r2": 0.5396,
+      "gain": 0.0182
+    },
+    "P9b flat flow + national mean": {
+      "r2": 0.5465,
+      "gain": 0.0251
+    },
+    "P9c geography 750 km + national mean": {
+      "r2": 0.5519,
+      "gain": 0.0305
     },
     "P5  everything, on the flat base": {
-      "r2": 0.6413,
-      "test_rows": 205447
-    }
+      "r2": 0.6487,
+      "gain": 0.1274
+    },
+    "_common_test_rows": 178657
   },
   "horizon_3h": {
     "P0 baseline (own history + time of day)": {
-      "r2": 0.4061,
-      "test_rows": 180308
+      "r2": 0.4046,
+      "gain": 0.0
     },
     "P1a flow neighbours, flat (06's version)": {
-      "r2": 0.4528,
-      "test_rows": 180249
+      "r2": 0.453,
+      "gain": 0.0484
     },
     "P1b flow neighbours, travel-time lagged": {
-      "r2": 0.4364,
-      "test_rows": 179762
+      "r2": 0.4356,
+      "gain": 0.031
     },
     "P2  flat + arrivals landing here": {
-      "r2": 0.4685,
-      "test_rows": 178778
+      "r2": 0.4692,
+      "gain": 0.0647
     },
     "P3  flat + inbound aircraft already late": {
-      "r2": 0.4525,
-      "test_rows": 180176
+      "r2": 0.4544,
+      "gain": 0.0498
     },
     "P4  flat + weather and scheduled traffic": {
-      "r2": 0.4533,
-      "test_rows": 179628
+      "r2": 0.4531,
+      "gain": 0.0486
+    },
+    "P6a geographic neighbours only, 300 km": {
+      "r2": 0.4388,
+      "gain": 0.0343
+    },
+    "P6b geographic neighbours only, 750 km": {
+      "r2": 0.4543,
+      "gain": 0.0497
+    },
+    "P6c geographic neighbours only, 1500 km": {
+      "r2": 0.4562,
+      "gain": 0.0517
+    },
+    "P7a flat flow + geography, 300 km": {
+      "r2": 0.4594,
+      "gain": 0.0548
+    },
+    "P7b flat flow + geography, 750 km": {
+      "r2": 0.4608,
+      "gain": 0.0562
+    },
+    "P7c flat flow + geography, 1500 km": {
+      "r2": 0.4572,
+      "gain": 0.0526
+    },
+    "P8  flow + geography + arrivals": {
+      "r2": 0.4745,
+      "gain": 0.0699
+    },
+    "P9a national mean only (no graph)": {
+      "r2": 0.4398,
+      "gain": 0.0352
+    },
+    "P9b flat flow + national mean": {
+      "r2": 0.4536,
+      "gain": 0.049
+    },
+    "P9c geography 750 km + national mean": {
+      "r2": 0.4582,
+      "gain": 0.0537
     },
     "P5  everything, on the flat base": {
-      "r2": 0.4674,
-      "test_rows": 178089
-    }
+      "r2": 0.4746,
+      "gain": 0.07
+    },
+    "_common_test_rows": 160247
   },
   "horizon_6h": {
     "P0 baseline (own history + time of day)": {
-      "r2": 0.2839,
-      "test_rows": 138229
+      "r2": 0.2797,
+      "gain": 0.0
     },
     "P1a flow neighbours, flat (06's version)": {
-      "r2": 0.3429,
-      "test_rows": 137033
+      "r2": 0.3494,
+      "gain": 0.0697
     },
     "P1b flow neighbours, travel-time lagged": {
-      "r2": 0.3141,
-      "test_rows": 137599
+      "r2": 0.323,
+      "gain": 0.0432
     },
     "P2  flat + arrivals landing here": {
-      "r2": 0.3494,
-      "test_rows": 135534
+      "r2": 0.3562,
+      "gain": 0.0765
     },
     "P3  flat + inbound aircraft already late": {
-      "r2": 0.3438,
-      "test_rows": 136993
+      "r2": 0.3504,
+      "gain": 0.0707
     },
     "P4  flat + weather and scheduled traffic": {
-      "r2": 0.3434,
-      "test_rows": 136528
+      "r2": 0.349,
+      "gain": 0.0693
+    },
+    "P6a geographic neighbours only, 300 km": {
+      "r2": 0.3199,
+      "gain": 0.0401
+    },
+    "P6b geographic neighbours only, 750 km": {
+      "r2": 0.3408,
+      "gain": 0.0611
+    },
+    "P6c geographic neighbours only, 1500 km": {
+      "r2": 0.3481,
+      "gain": 0.0683
+    },
+    "P7a flat flow + geography, 300 km": {
+      "r2": 0.3549,
+      "gain": 0.0752
+    },
+    "P7b flat flow + geography, 750 km": {
+      "r2": 0.3558,
+      "gain": 0.076
+    },
+    "P7c flat flow + geography, 1500 km": {
+      "r2": 0.3524,
+      "gain": 0.0727
+    },
+    "P8  flow + geography + arrivals": {
+      "r2": 0.3611,
+      "gain": 0.0814
+    },
+    "P9a national mean only (no graph)": {
+      "r2": 0.3313,
+      "gain": 0.0516
+    },
+    "P9b flat flow + national mean": {
+      "r2": 0.3496,
+      "gain": 0.0699
+    },
+    "P9c geography 750 km + national mean": {
+      "r2": 0.3509,
+      "gain": 0.0712
     },
     "P5  everything, on the flat base": {
-      "r2": 0.3499,
-      "test_rows": 134993
-    }
+      "r2": 0.3607,
+      "gain": 0.081
+    },
+    "_common_test_rows": 121289
   }
 }

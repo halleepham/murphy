@@ -17,9 +17,28 @@ the table:
                           chain says "*this aircraft* goes A to B to C", which is a
                           far sharper dependency and is already built and validated.
   P4  weather + traffic   both sit in the table already and neither is an outcome.
+  P6  geographic proximity a flight-count graph only sees airports that exchange
+                          planes. Two airports under one weather system move together
+                          whether or not they do. D3 is the evidence: *unconnected*
+                          pairs still correlated at +0.242, which is shared structure
+                          the flow graph cannot represent. STPN carries geography and
+                          schedule as separate relations for this reason.
+  P7  both relations      flow and geography together, which is STPN's multi-graph.
+  P9  no graph at all     the control the set was missing. Every "neighbour" feature
+                          above is a weighted mean over other airports, and a national
+                          mean is the same thing with the structure removed. If that
+                          scores as well, the gain was never about *which* airports
+                          are neighbours and no graph is justified. This is the
+                          cheapest way to falsify the whole model.
 
 Every feature is strictly past-observed relative to the target hour, except the
 scheduled departure count, which is known in advance by construction.
+
+**Every probe is scored on exactly the same rows.** A feature that is missing more
+often shrinks its own test set, and R2 is normalised by the variance of whatever set it
+is computed on, so blocks evaluated on different rows are not comparable. The valid-row
+mask is therefore built once from *all* candidate features and applied to every block,
+including the baseline.
 
 Run:  PYTHONPATH=src .venv/bin/python notebooks/07_stgnn_structure_probes.py
 """
@@ -33,10 +52,13 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import csv
+
 import duckdb
 import numpy as np
 
 FLIGHTS = "data/processed/flights_full/**/*.parquet"
+COORDS = pathlib.Path(__file__).resolve().parents[1] / "data" / "raw" / "airport_coords.csv"
 OUT = pathlib.Path(__file__).resolve().parents[1] / "results" / "stgnn_structure_probes.json"
 
 TOP_AIRPORTS = 100
@@ -158,25 +180,62 @@ def main() -> None:
     tot = A.sum(axis=1, keepdims=True)
     A = np.divide(A, tot, out=np.zeros_like(A), where=tot > 0)
 
-    def aggregate(M, shift=None):
+    coords = {}
+    with COORDS.open() as f:
+        for row in csv.DictReader(f):
+            coords[row["airport"]] = (float(row["lat"]), float(row["lon"]))
+    missing = [a for a in airports if a not in coords]
+    if missing:
+        raise SystemExit(f"no coordinates for {missing}")
+
+    def km(a, b):
+        (la1, lo1), (la2, lo2) = coords[a], coords[b]
+        return float(np.hypot((la1 - la2) * 111,
+                              (lo1 - lo2) * 111 * np.cos(np.radians((la1 + la2) / 2))))
+
+    D = np.array([[km(a, b) for b in airports] for a in airports])
+
+    def geo_adjacency(sigma_km):
+        """Gaussian kernel on distance, cut at 3 sigma, row-normalised.
+
+        The standard construction in this literature. Sigma sets what counts as
+        "the same weather", so it is swept rather than guessed.
+        """
+        G = np.exp(-((D / sigma_km) ** 2))
+        G[D > 3 * sigma_km] = 0.0
+        np.fill_diagonal(G, 0.0)
+        tot = G.sum(axis=1, keepdims=True)
+        return np.divide(G, tot, out=np.zeros_like(G), where=tot > 0)
+
+    def aggregate(M, shift=None, W=None):
         """Weighted mean of neighbours, optionally each at its own travel-time lag."""
         out = np.full(S, np.nan)
+        W = A if W is None else W
         src = np.nan_to_num(M, nan=0.0)
         seen = (~np.isnan(M)).astype(float)
         if shift is None:
-            num, den = A @ src, A @ seen
+            num, den = W @ src, W @ seen
         else:
             num, den = np.zeros(S), np.zeros(S)
             for i in range(len(airports)):
-                nz = np.nonzero(A[i])[0]
+                nz = np.nonzero(W[i])[0]
                 for j in nz:
                     k = lag_h[i, j]
-                    num[i, k:] += A[i, j] * src[j, :-k]
-                    den[i, k:] += A[i, j] * seen[j, :-k]
+                    num[i, k:] += W[i, j] * src[j, :-k]
+                    den[i, k:] += W[i, j] * seen[j, :-k]
         return np.divide(num, den, out=out, where=den > 0.2)
 
     flow_flat = aggregate(share)
     flow_timed = aggregate(share, shift=True)
+    geo_300 = aggregate(share, W=geo_adjacency(300))
+    geo_750 = aggregate(share, W=geo_adjacency(750))
+    # 750 km won the first sweep and was its widest setting, so the maximum was not
+    # bracketed. 1500 km brackets it from above.
+    geo_1500 = aggregate(share, W=geo_adjacency(1500))
+
+    # The no-graph control: every other airport weighted equally.
+    U = 1.0 - np.eye(len(airports))
+    nat_mean = aggregate(share, W=U / U.sum(axis=1, keepdims=True))
     print(f"  panel {S[0]} airports x {S[1]} hours; "
           f"mean travel lag {lag_h[A > 0].mean():.1f} h")
 
@@ -184,50 +243,77 @@ def main() -> None:
     cut = int(np.searchsorted(hours, dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)))
 
     # Each probe is the baseline plus one block of columns, so gains are comparable.
+    # Keys must be unique per *matrix*, not per role: the shared-feature dictionary is
+    # keyed by name, so two variants sharing a key silently collapse to one.
     BLOCKS = {
         "P0 baseline (own history + time of day)": [],
-        "P1a flow neighbours, flat (06's version)": [("nb", flow_flat)],
-        "P1b flow neighbours, travel-time lagged": [("nb", flow_timed)],
-        "P2  flat + arrivals landing here": [("nb", flow_flat), ("arr", arrivals)],
-        "P3  flat + inbound aircraft already late": [("nb", flow_flat), ("rot", rotation)],
-        "P4  flat + weather and scheduled traffic": [("nb", flow_flat), ("wind", wind),
+        "P1a flow neighbours, flat (06's version)": [("flow", flow_flat)],
+        "P1b flow neighbours, travel-time lagged": [("flow_timed", flow_timed)],
+        "P2  flat + arrivals landing here": [("flow", flow_flat), ("arr", arrivals)],
+        "P3  flat + inbound aircraft already late": [("flow", flow_flat), ("rot", rotation)],
+        "P4  flat + weather and scheduled traffic": [("flow", flow_flat), ("wind", wind),
                                                      ("precip", precip), ("vis", vis),
                                                      ("tstorm", tstorm), ("sched", schedule)],
-        "P5  everything, on the flat base": [("nb", flow_flat), ("arr", arrivals),
-                           ("rot", rotation), ("wind", wind), ("precip", precip),
-                           ("vis", vis), ("tstorm", tstorm), ("sched", schedule)],
+        "P6a geographic neighbours only, 300 km": [("geo300", geo_300)],
+        "P6b geographic neighbours only, 750 km": [("geo750", geo_750)],
+        "P6c geographic neighbours only, 1500 km": [("geo1500", geo_1500)],
+        "P7a flat flow + geography, 300 km": [("flow", flow_flat), ("geo300", geo_300)],
+        "P7b flat flow + geography, 750 km": [("flow", flow_flat), ("geo750", geo_750)],
+        "P7c flat flow + geography, 1500 km": [("flow", flow_flat), ("geo1500", geo_1500)],
+        "P8  flow + geography + arrivals": [("flow", flow_flat), ("geo750", geo_750),
+                                            ("arr", arrivals)],
+        "P9a national mean only (no graph)": [("nat", nat_mean)],
+        "P9b flat flow + national mean": [("flow", flow_flat), ("nat", nat_mean)],
+        "P9c geography 750 km + national mean": [("geo750", geo_750), ("nat", nat_mean)],
+        "P5  everything, on the flat base": [("flow", flow_flat), ("arr", arrivals),
+                           ("rot", rotation), ("geo750", geo_750), ("nat", nat_mean),
+                           ("wind", wind), ("precip", precip), ("vis", vis),
+                           ("tstorm", tstorm), ("sched", schedule)],
     }
 
     results: dict = {"horizons": list(HORIZONS), "airports": len(airports)}
+    ALL = {k: M for block in BLOCKS.values() for k, M in block}
+
     for H in HORIZONS:
-        print(f"\nhorizon +{H}h   (train 2023, test 2024)")
+        print(f"\nhorizon +{H}h   (train 2023, test 2024, identical rows for every row)")
+        # One pass: collect own-history, time of day and every candidate feature, and
+        # keep a row only where all of them exist.
+        own_l, extra_l, y_l, t_l = [], [], [], []
+        keys = list(ALL)
+        for i in range(len(airports)):
+            for j in range(LAGS, S[1] - H):
+                tgt = share[i, j + H]
+                own = share[i, j - LAGS + 1: j + 1]
+                if np.isnan(tgt) or np.isnan(own).any():
+                    continue
+                extra = [schedule[i, j + H] if k == "sched" else ALL[k][i, j]
+                         for k in keys]
+                if any(np.isnan(v) for v in extra):
+                    continue
+                tod = [np.sin(2 * np.pi * hod[j + H] / 24),
+                       np.cos(2 * np.pi * hod[j + H] / 24)]
+                own_l.append(np.concatenate([own, tod]))
+                extra_l.append(extra); y_l.append(tgt); t_l.append(j)
+        base_X = np.array(own_l)
+        extras = np.array(extra_l)
+        y, t = np.array(y_l), np.array(t_l)
+        tr, te = t < cut, t >= cut
+        col = {k: n for n, k in enumerate(keys)}
+        print(f"    common rows: train {tr.sum():,}  test {te.sum():,}")
+
         rows: dict = {}
+        base = None
         for name, block in BLOCKS.items():
-            X, y, t = [], [], []
-            for i in range(len(airports)):
-                for j in range(LAGS, S[1] - H):
-                    tgt = share[i, j + H]
-                    own = share[i, j - LAGS + 1: j + 1]
-                    if np.isnan(tgt) or np.isnan(own).any():
-                        continue
-                    # "sched" is the known schedule at the target hour; everything else
-                    # is read at the as-of hour j and is therefore already observed.
-                    extra = [schedule[i, j + H] if k == "sched" else M[i, j]
-                             for k, M in block]
-                    if any(np.isnan(v) for v in extra):
-                        continue
-                    tod = [np.sin(2 * np.pi * hod[j + H] / 24),
-                           np.cos(2 * np.pi * hod[j + H] / 24)]
-                    X.append(np.concatenate([own, tod, extra]))
-                    y.append(tgt); t.append(j)
-            X, y, t = np.array(X), np.array(y), np.array(t)
-            tr, te = t < cut, t >= cut
+            X = base_X if not block else np.hstack(
+                [base_X, extras[:, [col[k] for k, _ in block]]])
             w = ridge(X[tr], y[tr])
             score = r2(y[te], np.hstack([np.ones((int(te.sum()), 1)), X[te]]) @ w)
-            rows[name] = {"r2": round(score, 4), "test_rows": int(te.sum())}
-            base = rows.get("P0 baseline (own history + time of day)", {}).get("r2")
-            gain = f"{score - base:+.4f}" if base is not None and name[:2] != "P0" else "  --  "
-            print(f"    {name:<42} R2 {score:+.4f}   gain {gain}   n={te.sum():,}")
+            if base is None:
+                base = score
+            rows[name] = {"r2": round(score, 4), "gain": round(score - base, 4)}
+            gain = f"{score - base:+.4f}" if block else "  --  "
+            print(f"    {name:<42} R2 {score:+.4f}   gain {gain}")
+        rows["_common_test_rows"] = int(te.sum())
         results[f"horizon_{H}h"] = rows
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
