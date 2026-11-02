@@ -6,12 +6,12 @@ Rebuilt from zero on 1 Nov 2026. The previous repository is archived at
 
 Full context: `docs/HANDOFF.md`. Decisions: `docs/decisions/`.
 
-## The problem domain is not yet chosen
+## The problem domain
 
-This is a deliberate blank. The assignments constrain the *shape* of the work,
-not the subject. Do not assume a domain, dataset, or architecture until a
-decision record exists in `docs/decisions/`. If a task seems to require one,
-stop and ask.
+Decided in `docs/decisions/0002-problem-domain.md`: itinerary-specific flight
+disruption risk, with trustworthy probability forecasts and recommended
+alternatives. Do not assume a dataset, model, or architecture until a decision
+record exists for it. If a task seems to need one, propose options and ask.
 
 ## Every stage follows the same graded loop
 
@@ -32,10 +32,10 @@ reconstructing them at submission time:
    deliberate failure or thin-evidence case, and at least one comparison
    against a *simpler* baseline.
 
-During **Human Design** stages the assignment explicitly asks the human to make
-the major design decisions with minimal AI involvement. Do not propose a
-schema, ontology, or architecture during those stages unless asked. Research and
-summarise; do not decide.
+**Human Design stages are co-planned** (owner's decision, `0002`). Propose
+options with a recommendation; the owner decides. Deadlines have passed:
+build only the end product, no slides or reports, but use every required
+method.
 
 ## Rules from the assignments — not negotiable
 
