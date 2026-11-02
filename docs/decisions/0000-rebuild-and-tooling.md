@@ -113,3 +113,8 @@ subject, and `requirements.txt` therefore holds only what they mandate by name:
 Streamlit (Challenge 2) and the Neo4j driver (Challenge 3).
 
 The domain decision is `0001`, and it blocks everything downstream.
+
+> **Correction, 1 Nov 2026.** The domain decision is `0002`, not `0001`.
+> `0001` records the 5.5 model generation, which had to be settled the
+> same day. The domain is still undecided and still blocks everything
+> downstream. The decision above is otherwise unchanged.
