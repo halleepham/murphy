@@ -1,0 +1,46 @@
+# ---------------------------------------------------------------------------
+# Private material — NEVER committed.
+#
+# This directory exists because the previous repository learned this the hard
+# way: planning documents were committed early, `docs/` was gitignored later,
+# and the result was a local-only commit carrying private design docs and
+# sample data that could not be pushed without publishing them. Anything
+# sensitive goes here from the start, so `docs/` can stay committed and
+# reviewable.
+# ---------------------------------------------------------------------------
+private/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Data — nothing under data/ is committed until a size and licensing decision
+# is recorded in docs/decisions/. See AGENTS.md.
+data/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# Tooling state
+.treehouse/
+.no-mistakes/
+.DS_Store
+
+# Editors
+.idea/
+*.swp
+
+# Build artefacts
+dist/
+build/
