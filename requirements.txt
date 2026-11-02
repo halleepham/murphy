@@ -1,10 +1,9 @@
-# Assignment-mandated core only. Installed as wheels on macOS x86_64 /
-# CPython 3.10 — no source builds. See docs/HANDOFF.md before adding to
-# this file: Homebrew no longer serves this machine, so a dependency
-# without an x86_64 cp310 wheel is a real cost, not a detail.
+# Core only. Installed as wheels on macOS x86_64 / CPython 3.12 (see
+# docs/decisions/0003) — no source builds. Homebrew no longer serves this
+# machine, so a dependency without an x86_64 cp312 wheel is a real cost,
+# not a detail. Record why in docs/decisions/ before adding anything.
 #
 # Required by the assignments:
-#   streamlit     - Challenge 2 mandates a Streamlit application
 #   neo4j         - Challenge 3 mandates a Neo4j knowledge graph
 #   python-dotenv - credentials via .env, never committed
 #   pytest        - the Stop hook runs the suite on every turn
@@ -16,4 +15,3 @@
 neo4j==6.4.1
 pytest==9.2.0
 python-dotenv==1.2.4
-streamlit==1.65.0

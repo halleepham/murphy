@@ -103,8 +103,12 @@ session cost ~160k tokens *per turn* regardless of what the turn did, roughly
   from the project's own GitHub release assets, verified against their
   published `checksums.txt`. Anything that needs compiling is a cost to be
   decided on, not absorbed silently.
-- Python is 3.10.6 at `/usr/local/bin/python3`. Project venv at `.venv`.
-- Check wheel availability for `x86_64` + cp310 *before* adding a dependency.
+- Python is 3.12.16 at `~/.local/opt/cpython-3.12.16` (`0003`). Venv at `.venv`.
+- Check wheel availability for `x86_64` + cp312 *before* adding a dependency.
+  PyTorch is capped at 2.2.2 on this machine (needs `numpy<2`).
+- Free models only (no paid APIs). No Streamlit (`0003`).
+- Every decision record lists alternatives and evidence: the owner's final
+  report must justify each choice.
 - Never add a dependency without asking.
 
 ## Tooling installed

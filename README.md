@@ -33,7 +33,7 @@ Uncertainty**.
 ## Running it
 
 ```bash
-python3 -m venv .venv
+~/.local/opt/cpython-3.12.16/bin/python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 cp .env.example .env     # then fill it in
 .venv/bin/python -m pytest -q
@@ -60,7 +60,8 @@ data/                gitignored until a size and licensing decision is recorded
   2026 and builds no bottles for this machine, so `brew install` silently
   compiles from source. Install CLI tools from upstream GitHub release assets
   instead, verified against their published checksums.
-- Python 3.10.6. Every dependency must have an `x86_64` + cp310 wheel.
+- Python 3.12.16 (prebuilt standalone build, see `docs/decisions/0003`).
+  Every dependency must have an `x86_64` + cp312 wheel.
 
 ## Licence
 

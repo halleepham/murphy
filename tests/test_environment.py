@@ -14,19 +14,15 @@ import unittest
 
 
 class TestPythonVersion(unittest.TestCase):
-    def test_python_is_3_10_or_newer(self):
-        self.assertGreaterEqual(
-            sys.version_info[:2], (3, 10), f"got {sys.version.split()[0]}"
+    def test_python_is_3_12(self):
+        """0003: the project runs on 3.12 (torch 2.2.2 supports up to 3.12)."""
+        self.assertEqual(
+            sys.version_info[:2], (3, 12), f"got {sys.version.split()[0]}"
         )
 
 
 class TestMandatedDependencies(unittest.TestCase):
-    """Challenge 2 mandates Streamlit; Challenge 3 mandates Neo4j."""
-
-    def test_streamlit_imports(self):
-        import streamlit
-
-        self.assertTrue(streamlit.__version__)
+    """Challenge 3 mandates Neo4j. Streamlit was dropped in 0003."""
 
     def test_neo4j_driver_imports(self):
         import neo4j
