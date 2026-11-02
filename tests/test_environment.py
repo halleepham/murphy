@@ -35,6 +35,23 @@ class TestMandatedDependencies(unittest.TestCase):
         self.assertTrue(callable(load_dotenv))
 
 
+class TestBuildStack(unittest.TestCase):
+    """The approved stack (0005) only works as a set on this Intel Mac:
+    torch 2.2.2 is the last macOS x86_64 wheel and needs numpy<2, which in
+    turn caps pyarrow at 25. Fail loudly if an upgrade breaks that."""
+
+    def test_numpy_below_2(self):
+        import numpy
+
+        self.assertLess(int(numpy.__version__.split(".")[0]), 2, numpy.__version__)
+
+    def test_stack_imports_together(self):
+        import duckdb, pandas, pyarrow, sklearn, torch, torch_geometric  # noqa: F401
+        import sentence_transformers, rank_bm25, networkx, fastapi  # noqa: F401
+
+        self.assertEqual(torch.tensor([1.0]).numpy().tolist(), [1.0])
+
+
 class TestSecretsAreNotCommitted(unittest.TestCase):
     """A .env must never reach the repository. The old project kept private
     planning docs out of git only by accident; this makes it a test."""
