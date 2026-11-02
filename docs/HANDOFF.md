@@ -61,23 +61,27 @@ Today is **1 Nov 2026**. Assignment deadlines, from the instruction files:
 | **Challenge 4 — Human–AI Co-Design** | **Mon 2 Nov, 11:59 PM** | **tomorrow** |
 | Challenge 5, Challenge 6 | not released | no instructions on disk |
 
-**Challenge 4's Co-Design submission is due tomorrow, and its requirements are
-explicitly cumulative.** The assignment says "Build upon your existing GraphRAG
-project rather than starting a new system," and the tasks require an existing
-knowledge graph to run community detection against, a baseline GraphRAG to
-compare the community-enhanced version with, and an ablation study.
+### How the repo owner has decided to handle this
 
-This repository cannot satisfy that. It has no graph, no data, and no chosen
-domain.
+Every listed deadline has passed or falls immediately. **The owner's decision,
+1 Nov 2026: the deadlines are flexible, and this project will not try to extend
+the archived system.** Challenges 2 and 3 will be planned fresh in this
+repository rather than inherited from `murphy-v1`.
 
-**The implication:** Challenge 4 should be submitted from `murphy-v1`, which
-has the GraphRAG system the assignment builds on. This rebuild starts cleanly at
-Challenge 5. Do not try to reconstruct Challenge 4 here — there is not time, and
-the assignment is explicit that it extends existing work.
+Two consequences for anyone working here:
 
-If the repo owner has an extension or has already submitted Challenge 4, this
-note is moot. It is written down because a from-scratch rebuild the day before a
-cumulative deadline is worth stating out loud rather than discovering later.
+- **Do not treat the dates above as binding.** They are a map of what the course
+  asks for, in the order it asks, not a schedule to race. Confirm the real
+  timing with the owner before letting a date drive a decision.
+- **Do not reach into `murphy-v1` to satisfy a cumulative-sounding requirement.**
+  Several assignments are written as extensions of earlier work — Challenge 4
+  says "build upon your existing GraphRAG project rather than starting a new
+  system," and Challenge 3's later stages assume the knowledge graph from its
+  earlier ones. Within *this* project that chain still holds and should be built
+  in order. It does not reach back to the archived repo.
+
+So the planning sequence is the assignment sequence, starting from Challenge 2,
+with the domain decision (§9) ahead of all of it.
 
 ---
 
@@ -330,14 +334,28 @@ agents ever work here.
 
 In order:
 
-1. **Resolve the Challenge 4 question in §2.** Submit from `murphy-v1`, or
-   confirm it is already handled. Do this before building anything here.
-2. **Decide the problem domain and record it** in `docs/decisions/0001-*.md`
-   with the reasoning. Everything else is blocked on this.
-3. **Choose the data sources** against the Challenge 2 criteria — real,
-   focused, groundable, evaluable — and record the licensing and
-   size decision that governs whether anything may be committed under `data/`.
-4. **Then, and only then,** add dependencies, and record why each one.
+1. **Decide the problem domain and record it** in `docs/decisions/0001-*.md`
+   with the reasoning. Everything else is blocked on this. The Challenge 2
+   Human Design instructions are the right prompt for it: the problem, the
+   target users, why it matters, the tasks broken down and prioritised P1–P3,
+   and the data the first P1 task needs.
+2. **Choose the data sources** against the Challenge 2 criteria — real,
+   focused, groundable, evaluable — and record the licensing and size decision
+   that governs whether anything may be committed under `data/`.
+3. **Then, and only then,** add dependencies, and record why each one.
 
-Nothing in this repository prejudges steps 2 and 3. That was the point of
+Nothing in this repository prejudges steps 1 and 2. That was the point of
 keeping it empty.
+
+### Infrastructure deliberately not set up yet
+
+None of this is needed for planning, and each is one command when real code
+starts moving:
+
+- **`no-mistakes init`** on this repo — installs the push gate. Needs an
+  `origin` (exists). Reinstalls the login LaunchAgent; pass
+  `--skip-user-skill` to avoid writing a skill into `~/.claude/skills`.
+- **A treehouse pool** — created on the first `treehouse get`.
+- **CI** — `no-mistakes ci-workflow` generates `.github/workflows/ci.yml` from
+  `.no-mistakes.yaml`. The `gh` token has `workflow` scope.
+- **`.env`** — copy from `.env.example` when a Neo4j instance exists.
