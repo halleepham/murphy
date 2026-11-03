@@ -5,6 +5,7 @@ Rebuilt from zero on 1 Nov 2026. The previous repository is archived at
 `halleepham/murphy-v1`; **do not consult it.** Nothing in it is a precedent.
 
 Full context: `docs/HANDOFF.md`. Decisions: `docs/decisions/`.
+Build plan and step status: `docs/PLAN.md`.
 
 ## The problem domain
 
