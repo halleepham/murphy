@@ -19,7 +19,7 @@ private/
 
 # Data — nothing under data/ is committed until a size and licensing decision
 # is recorded in docs/decisions/. See AGENTS.md.
-data/
+/data/
 
 # Python
 .venv/

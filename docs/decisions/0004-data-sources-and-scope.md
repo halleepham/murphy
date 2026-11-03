@@ -61,7 +61,9 @@ published through Aug 2026 (verified: BTS release page, entry dated 19 Oct
   14 days ([NBAA](https://nbaa.org/aircraft-operations/airspace/tfm/resources/advisories/),
   a secondary source). A forward-looking collector was rejected for the timing
   reason above. Stand-in: BTS NAS-delay minutes from *earlier* hours only, so
-  `as_of` is respected.
+  `as_of` is respected. **Revised in `0006` (3 Nov 2026):** delay causes are
+  hidden until BTS publishes the month, so the stand-in is earlier flights'
+  delays and cancellations instead.
 - **Skytrax-derived review datasets.** The license is unclear.
 - **Minimum connection times.** Proprietary (IATA, OAG, Cirium). Murphy uses a
   stated, labeled assumption.
