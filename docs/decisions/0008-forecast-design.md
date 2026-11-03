@@ -2,7 +2,8 @@
 
 **Date:** 3 Nov 2026
 **Status:** accepted by the owner, 3 Nov 2026. Decision 1 was revised and
-then reverted the same day (see its history). Nothing is built yet. This is Step 2 of `docs/PLAN.md`.
+then reverted the same day (see its history). This is Step 2 of `docs/PLAN.md`.
+Built so far: the sample and the climatology baseline (Decision 5).
 
 Given by earlier decisions: per-leg arrival-delay distribution plus
 cancellation probability; climatology baseline; Brier score and calibration
@@ -117,6 +118,41 @@ Each gets a test when Step 2 is built. Also noted: when departure and
 arrival become known is an assumption (`0006`); its effect can be checked.
 **Owner: accepted, 3 Nov 2026.**
 
+## Decision 5 — How the sample and climatology are built
+
+**Status:** built 3 Nov 2026. AI proposals; **owner accepted all four,
+3 Nov 2026.**
+
+- **As-of in bulk.** Calling `flights_as_of` once per forecast would mean
+  ~7.4M calls. Instead one DuckDB query applies the same rule
+  (`arr_known_at < as_of`) with an ASOF JOIN on running class counts. A test
+  checks the result equals shares counted through `flights_as_of` itself.
+- **Sample by hash.** `hash(flight_id) % 10000 < 942`, so the same legs
+  return on every run. Same rate for 2026 test legs.
+- **Climatology window: trailing 365 days** of all legs, not only sampled
+  ones. Untuned.
+- **Two climatologies:** global, and by origin airport shrunk toward global
+  with ALPHA = 100 legs. Untuned.
+- **No history, no forecast.** A forecast with nothing before it is blank,
+  not filled. None of the 2026 test forecasts are blank.
+
+Code: `murphy/forecast/{sample,climatology,score}.py`. Tests:
+`tests/test_forecast.py` (12 cases).
+
+**Results on 2026** (1,439,445 forecasts = 479,815 legs × 3 lead times;
+`data/forecast/scores_baselines.csv`, gitignored). Lower is better.
+
+| Model | Multiclass Brier | Brier, late* |
+|---|---|---|
+| uniform (all 16 classes equal) | 0.9375 | 0.5770 |
+| climatology, global | 0.6172 | 0.1885 |
+| climatology, by origin | 0.6145 | 0.1870 |
+
+\*late = 15+ minutes late, cancelled, or diverted (the DOT definition).
+By weather coverage, by-origin climatology scores 0.6434 (both ends),
+0.6014 (one end), 0.5889 (neither). Lead time changes nothing, as expected
+for climatology. Sample built in 6 s; both climatologies in 5 min 17 s.
+
 ## AI-recommendation instances
 
 | AI recommended | Owner | Why |
@@ -127,3 +163,4 @@ arrival become known is an assumption (`0006`); its effect can be checked.
 | Delay as 15-minute range probabilities plus P(cancel), not quantiles | accepted | owner asked why; direct threshold answers, cancellations, Brier |
 | ~2M-leg sample, lead times 24 h / 6 h / 2 h | accepted | fast on 16 GB; avoids processing everything |
 | Three leakage guards (as-of rates, time-block tuning, rows kept together) | accepted | owner asked if the random sample leaks; it does not, but these three could |
+| Bulk as-of via ASOF JOIN; hash sample; 365-day window; ALPHA = 100 | accepted | one query instead of ~7.4M; equivalence tested |
