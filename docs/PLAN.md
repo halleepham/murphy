@@ -13,13 +13,15 @@ end-to-end slice first, then adds the graph methods.
 1. **Data slice and `as_of` data layer.** The chosen carriers at about 10–15
    hubs, plus IEM weather, DB1B fares and DOT data. Stored as Parquet behind
    an `as_of` data layer, with tests showing no future data leaks in.
-   *Status (checked 3 Nov 2026): **partly done.***
+   *Status (checked 3 Nov 2026): **done.***
    - *Done (`bd5bc39`, `0006`): BTS flights and the `as_of` layer.
      **Scope changed:** every airport, not 10–15 hubs (owner accepted in
      `0006`), because aircraft rotations leave the hubs.*
-   - *Not started:* IEM weather observations (ASOS) and forecasts as issued
-     (TAF); DB1B fares; DOT policy and consumer data. IEM was used only for
-     station time zones so far.
+   - *Done (`0007`): IEM weather, ASOS observations and TAF forecasts as
+     issued, for the 30 busiest airports (64.6% of departures), behind the
+     same `as_of` rules. **Scope changed:** 30 airports, chosen by the owner.*
+   - *Moved (`0007`, owner accepted):* DB1B fares to Step 3; DOT policy and
+     consumer data to Step 4, where each is first used.
 2. **Forecasts.** Climatology, then a gradient-boosted model giving per-leg
    delay distributions and cancellation probability. Scored by Brier score
    and calibration on 2026.

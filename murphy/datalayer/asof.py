@@ -91,3 +91,55 @@ def flights_as_of(
         ORDER BY sched_dep_utc, flight_id
     """
     return duckdb.sql(sql, params=params).df()
+
+
+# --- Weather (docs/decisions/0007) -------------------------------------------
+# ASOS: an observation is visible once known_at = obs time + METAR_LAG < as_of.
+# TAF:  a forecast is visible once issued (known_at = issue time) < as_of.
+# Only the 30 airports in weather.AIRPORTS have weather. Asking for another
+# raises, so missing weather is never mistaken for calm weather.
+
+WEATHER = Path(__file__).resolve().parents[2] / "data" / "weather"
+
+
+def _check_airport(airport: str) -> None:
+    from murphy.datalayer.weather import AIRPORTS
+    if airport not in AIRPORTS:
+        raise ValueError(f"no weather for {airport}: only the 30 airports in 0007 have it")
+
+
+def asos_as_of(
+    as_of: datetime, airport: str, lookback_hours: int = 24,
+    source: Path | str = WEATHER,
+) -> pd.DataFrame:
+    """Observations at `airport` known before as_of, from the last lookback_hours."""
+    _check_airport(airport)
+    t = _utc(as_of)
+    sql = """
+        SELECT *, $t AS as_of_utc FROM read_parquet($src)
+        WHERE airport = $a AND known_at < $t
+          AND obs_utc >= $t - to_hours(CAST($h AS BIGINT))
+        ORDER BY obs_utc
+    """
+    params = {"t": t, "a": airport, "h": lookback_hours, "src": f"{source}/asos.parquet"}
+    return duckdb.sql(sql, params=params).df()
+
+
+def taf_as_of(as_of: datetime, airport: str, source: Path | str = WEATHER) -> pd.DataFrame:
+    """Every period of the latest TAF for `airport` issued before as_of.
+
+    Empty if none was issued in the data window. The caller checks
+    issued_utc: an old TAF is weak evidence, and that is the caller's call.
+    In 71 of 374,113 products IEM holds two versions of a group; both are
+    returned, so the caller sees the conflict.
+    """
+    _check_airport(airport)
+    t = _utc(as_of)
+    sql = """
+        WITH taf AS (SELECT * FROM read_parquet($src) WHERE airport = $a AND known_at < $t)
+        SELECT *, $t AS as_of_utc FROM taf
+        WHERE known_at = (SELECT max(known_at) FROM taf)
+        ORDER BY period_start_utc, period_type
+    """
+    params = {"t": t, "a": airport, "src": f"{source}/taf.parquet"}
+    return duckdb.sql(sql, params=params).df()
