@@ -43,8 +43,12 @@ flag. scikit-learn's `HistGradientBoosting` handles blanks natively.
    lack of time.** The partial download (243 files, 24 airports) was
    deleted; the 300 original files still match their manifest hashes.
    Reverting means (a) again, since covered-only at 30 would forecast
-   33.9% of flights. *AI assumption: the owner's "original plan" means (a),
-   not covered-only at 30; to confirm.*
+   33.9% of flights. The owner asked which to pick. **AI recommended (a):**
+   covered-only at 30 leaves two thirds of flights without a forecast;
+   95.3% have weather at one end at least; route, carrier, time and
+   aircraft history apply everywhere; the output can state "no weather
+   data" as evidence; and scoring by coverage will show if (a) is weak.
+   **Owner: confirmed (a).**
 
 **Known for a later widening** (not built): HNL, SJU, ANC, OGG, KOA, LIH and
 FAI use ICAO station IDs at IEM, not IATA; PBI's ASOS history is under DJT.
