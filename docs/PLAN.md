@@ -13,15 +13,21 @@ end-to-end slice first, then adds the graph methods.
 1. **Data slice and `as_of` data layer.** The chosen carriers at about 10–15
    hubs, plus IEM weather, DB1B fares and DOT data. Stored as Parquet behind
    an `as_of` data layer, with tests showing no future data leaks in.
-   *Status: flight slice and `as_of` layer committed in `bd5bc39`; see
-   `0006`. Check `0006` for which sources are actually in.*
+   *Status (checked 3 Nov 2026): **partly done.***
+   - *Done (`bd5bc39`, `0006`): BTS flights and the `as_of` layer.
+     **Scope changed:** every airport, not 10–15 hubs (owner accepted in
+     `0006`), because aircraft rotations leave the hubs.*
+   - *Not started:* IEM weather observations (ASOS) and forecasts as issued
+     (TAF); DB1B fares; DOT policy and consumer data. IEM was used only for
+     station time zones so far.
 2. **Forecasts.** Climatology, then a gradient-boosted model giving per-leg
    delay distributions and cancellation probability. Scored by Brier score
    and calibration on 2026.
 3. **Itinerary risk and alternatives.** Missed connection, missing the
    deadline, and ranking of alternatives, all in code.
 4. **Parsing and retrieval.** Itinerary parsing (text → Groq → validated
-   schema). Retrieval over policy and analog days, compared against BM25.
+   schema). Retrieval over policy and analog days, plus weather forecast
+   text if the IEM archive has it (`0004` Decision 4), compared against BM25.
 
 ## Day 2 — Challenges 3 and 4, then the UI
 
@@ -30,7 +36,8 @@ end-to-end slice first, then adds the graph methods.
 6. **Community detection,** plus the ablation with and without community
    features.
 7. **A small STGNN,** compared against the simpler models.
-8. **UI** with in-browser OCR (Tesseract.js) and charts.
+8. **UI** with in-browser OCR (Tesseract.js) and charts. The frontend
+   framework is not decided yet (`0003` Decision 6: not Streamlit).
 9. **Deploy.**
 
 Steps 7 and 9 are the first to shrink if time runs short. The assignment
