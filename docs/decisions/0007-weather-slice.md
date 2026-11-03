@@ -7,6 +7,9 @@ and DOT data, and the 10-minute METAR lag).
 Code: `scripts/fetch_iem.py`, `murphy/datalayer/weather.py`,
 `asof.asos_as_of`, `asof.taf_as_of`. Tests: `tests/test_weather.py`.
 
+> Widening to 149 airports was accepted and then reverted on 3 Nov 2026,
+> for download time (`0008` Decision 1). The 30 below stand.
+
 ## Decision 1 — Which airports: the 30 busiest
 
 Measured on our BTS data (Jan 2023 – Aug 2026, `duplicate_flag` excluded,
