@@ -1,8 +1,8 @@
 # 0007 — The weather slice: IEM ASOS and TAF as issued
 
 **Date:** 3 Nov 2026
-**Status:** scope accepted by the owner, 3 Nov 2026. The METAR lag
-(Decision 3) is an AI recommendation, **awaiting the owner**.
+**Status:** accepted by the owner, 3 Nov 2026 (scope, the move of fares
+and DOT data, and the 10-minute METAR lag).
 
 Code: `scripts/fetch_iem.py`, `murphy/datalayer/weather.py`,
 `asof.asos_as_of`, `asof.taf_as_of`. Tests: `tests/test_weather.py`.
@@ -51,10 +51,20 @@ Step 1 ends with weather.
   `202309101740`) has rows under both 17:20 and 17:40; with this rule all
   its rows share one `known_at`. Amendments are separate products with
   their own time, so a later amendment never reaches back.
-- **ASOS: observation time + 10 minutes.** IEM stores no receipt time. The
-  10 minutes is an **assumption, not a sourced figure.** A visibility rule is
-  needed either way, and zero lag would let a model see a METAR before it
-  was sent. *Awaiting the owner.*
+- **ASOS: observation time + 10 minutes.** IEM stores no receipt time, so
+  the 10 minutes was first a guess. The owner asked why, so it was measured
+  against the NOAA Aviation Weather Center API (`aviationweather.gov/api/
+  data/metar`, `format=json`), which gives `receiptTime` beside `obsTime`.
+  400 reports from all 30 airports, observed 3 Nov 2026 04:53–16:14 UTC
+  (asked for 168 h, the API returned 400 rows). Lag in minutes:
+  median 3.6, 95th percentile 4.8, 99th 6.1, max 22.1 (BOS). METAR and
+  SPECI are alike (99th: 6.0 and 7.9). 397 of 400 (99.25%) arrived within
+  10 minutes; the three later were BOS 22.1, MIA 17.1, AUS 11.3.
+  **Limits:** one morning, not the 2023–2026 window; it is AWC's receipt
+  time, not a traveler's. Observations are about hourly, so a lag that is
+  too long hides a report a few minutes longer; one too short leaks it.
+  **Options:** 5 min (about the 95th percentile), 10 min, 25 min (covers
+  every report seen). **AI recommended 10. Owner: accepted.**
 
 As with flights, visibility is strict: `known_at < as_of`.
 
@@ -124,6 +134,6 @@ here), 3 Nov 2026. The 39 warnings are PyTorch deprecation warnings.
 |---|---|---|
 | Weather for the 30 busiest airports | accepted | 64.6% of departures; small download; can widen |
 | Fares and DOT data move to Steps 3–4 | accepted | fetch each where it is first used |
-| METAR visible 10 min after observation | awaiting | no receipt time in IEM; zero lag would leak |
+| METAR visible 10 min after observation | accepted | measured: 99.25% of 400 AWC reports received within 10 min |
 | Rename IEM's TAF `Observation` group to `initial` | not asked | it is a forecast; the IEM label misleads |
 | TAF known at the later of IEM time and `product_id` time | not asked | found after the build: 84 products disagree; later cannot leak |

@@ -5,8 +5,8 @@ Aug 2026, duplicates excluded); they carry 64.6% of departures. Owner chose
 this in 0007. A leg at any other airport has no weather, and says so.
 
 When each row becomes known (used by murphy.datalayer.asof):
-  ASOS  observation time + METAR_LAG. IEM keeps no receipt time, so the lag
-        is an assumption, not a sourced figure.
+  ASOS  observation time + METAR_LAG. IEM keeps no receipt time. 10 min
+        covered 99.25% of 400 reports in an AWC receipt-time sample (0007).
   TAF   its issue time: the later of IEM's `valid` column and the
         timestamp in product_id. They differ on 84 of 374,113 products
         (0.02%), either way round, by 1 to 160 minutes.
