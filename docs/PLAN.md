@@ -25,8 +25,10 @@ end-to-end slice first, then adds the graph methods.
 2. **Forecasts.** Climatology, then a gradient-boosted model giving per-leg
    delay distributions and cancellation probability. Scored by Brier score
    and calibration on 2026.
-   *Status (3 Nov 2026): **in progress.** Sample and climatology baseline
-   built and scored (`0008` Decision 5). Gradient-boosted model next.*
+   *Status (5 Nov 2026): **in progress.** Sample and climatology baseline
+   scored on 2026 (`0008` Decision 5). Gradient-boosted model built and
+   scored on 2025 (Decisions 6–8). Pending: the owner's calibration decision,
+   then scoring it on 2026, once.*
 3. **Itinerary risk and alternatives.** Missed connection, missing the
    deadline, and ranking of alternatives, all in code.
 4. **Parsing and retrieval.** Itinerary parsing (text → Groq → validated
