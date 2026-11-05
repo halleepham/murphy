@@ -153,6 +153,42 @@ By weather coverage, by-origin climatology scores 0.6434 (both ends),
 0.6014 (one end), 0.5889 (neither). Lead time changes nothing, as expected
 for climatology. Sample built in 6 s; both climatologies in 5 min 17 s.
 
+## Decision 6 — The gradient-boosted model and its inputs
+
+**Status:** AI proposal; **owner accepted, 3 Nov 2026.** Not built yet.
+
+Measured in the sample before proposing: 356 origin airports, 18 operating
+carriers, 6,416 routes; 0.28% of legs have no tail number.
+
+- **Model.** One `HistGradientBoostingClassifier` over the 16 classes, so
+  the probabilities sum to 1 and are scored like the baselines. Fit on
+  2023–24, a grid of at most 6 settings scored on 2025, and 2026 scored
+  once. The library's own early stopping is off: it holds out random rows,
+  which breaks Decision 4.2.
+- **Inputs, each as of the forecast** (same ASOF-join pattern as
+  climatology):
+  - A. *Schedule:* carrier (categorical), local hour, weekday, month,
+    distance, scheduled duration, lead time.
+  - B. *Trailing 365-day rates:* P(late), P(cancel), mean delay by origin,
+    destination, carrier, route, carrier × origin; plus the by-origin
+    climatology. Airports are rates, not categories: the library allows
+    at most 255 categories and there are 356 airports.
+  - C. *Current state:* the last 2 h of departures at the origin and
+    arrivals at the destination (share late, mean delay, cancellations).
+  - D. *The aircraft's prior leg:* scheduled turn time, its delay so far,
+    whether it has departed. Blank at the 24 h lead time, because the tail
+    is visible only once `sched_dep − 24 h < as_of` (`0006`).
+  - E. *Weather:* latest observation at the origin; the TAF for departure
+    at the origin and for arrival at the destination; has-weather flags.
+- **Ablation:** A; A+B; A+B+C+D; all. Each is scored by weather coverage.
+  This is the comparison against simpler models.
+- **Calibration:** reliability is measured on 2025 first. It is fixed only
+  if it needs fixing, because per-class calibration breaks "sums to 1".
+
+**Timing measured before building:** with 45 synthetic features and 16
+classes, 50 boosting rounds took 11.5 s on 200k rows and 27.2 s on 800k
+(8 cores).
+
 ## AI-recommendation instances
 
 | AI recommended | Owner | Why |
@@ -164,3 +200,4 @@ for climatology. Sample built in 6 s; both climatologies in 5 min 17 s.
 | ~2M-leg sample, lead times 24 h / 6 h / 2 h | accepted | fast on 16 GB; avoids processing everything |
 | Three leakage guards (as-of rates, time-block tuning, rows kept together) | accepted | owner asked if the random sample leaks; it does not, but these three could |
 | Bulk as-of via ASOF JOIN; hash sample; 365-day window; ALPHA = 100 | accepted | one query instead of ~7.4M; equivalence tested |
+| One 16-class gradient-boosted model; input groups A–E; ablation; measure calibration before fixing | accepted | probabilities sum to 1; airports as rates (356 > 255 categories); ablation shows what each group adds |
