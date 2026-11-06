@@ -246,8 +246,12 @@ on order, so size alone does little harm. They are not cleaned yet.
 
 ## Decision 8 — Results on 2025, and calibration
 
-**Status:** results measured 5 Nov 2026. **Pending the owner:** whether to
-adjust calibration, and scoring 2026. 2026 has not been touched.
+**Status:** results measured 5 Nov 2026. **Owner chose, 5 Nov 2026:** make no
+calibration change (options: keep as is; a monthly correction; refit on
+2023–25). AI recommended keeping it, since the tested fix did nothing and the
+others cannot be checked before 2026. **The owner put scoring 2026 on hold**
+while checking the project against its research claim. 2026 has not been
+touched.
 
 Files (gitignored): `data/forecast/gbm/*.json` (each fit and its 2025 curve),
 `scores_tune.csv`, `calibration_tune.csv`. Code: `murphy/forecast/gbm.py`.
