@@ -14,6 +14,8 @@ Commands (results in data/forecast/gbm/, resumable: finished runs are skipped):
   python -m murphy.forecast.gbm final    best settings, every 2023-24 flight
   python -m murphy.forecast.gbm l2       stress test of l2 on the unstable settings (0010)
   python -m murphy.forecast.gbm refit    lr 0.05 and l2 on every 2023-24 flight (0010)
+  python -m murphy.forecast.gbm ablate_l2  input sets again with REFIT's settings (0010)
+  python -m murphy.forecast.gbm score_l2   scores, calibration, intervals on 2025, l2 models
   python -m murphy.forecast.gbm tune     scores and calibration on 2025
   python -m murphy.forecast.gbm test     2026, once, for models picked on 2025
 """
@@ -31,7 +33,8 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from murphy.forecast import features as ft
 from murphy.forecast.climatology import OUT_DIR
 from murphy.forecast.sample import CLASSES
-from murphy.forecast.score import PCOLS, calibration, multiclass_brier, report
+from murphy.forecast.score import (EVENTS, PCOLS, calibration, day_ci, multiclass_brier,
+                                   report, row_brier)
 
 OUT = OUT_DIR / "gbm"
 GROUPS = ("a", "ab", "abcd", "abcde")  # the ablation, simplest first
@@ -175,6 +178,46 @@ def score_all(split: str) -> None:
         print(m, s.pivot(index="group", columns="model", values=m).round(4), sep="\n")
 
 
+def score_l2() -> None:
+    """2025 only. Each l2 model against the one before it, and against climatology."""
+    r = pd.read_parquet(OUT_DIR / "rows.parquet", columns=[*INFO, "flight_date"])
+    r = r[r.split == "tune"]
+    clim = r.merge(pd.read_parquet(OUT_DIR / "clim_origin.parquet"), on=["flight_id", "lead_h"])
+    clim = clim.dropna(subset=PCOLS)
+    keys = ["flight_id", "lead_h"]
+    out, cal, loss = [report(clim).assign(model="clim_origin")], [], {"clim_origin": row_brier(clim)}
+    days = clim.set_index(keys).flight_date
+    for e in EVENTS:
+        cal.append(calibration(clim, e).assign(model="clim_origin", event=e))
+    names = [f"l2abl_{g}" for g in GROUPS] + ["final_l2"]
+    for name in names:
+        rounds = json.loads((OUT / f"{name}.json").read_text())["best_rounds"]
+        f = forecast_frame(name, "tune", rounds)
+        out.append(report(f).assign(model=name, rounds=rounds))
+        loss[name] = row_brier(f)
+        for e in EVENTS:
+            cal.append(calibration(f, e).assign(model=name, event=e))
+    s, c = pd.concat(out), pd.concat(cal)
+    s.to_csv(OUT / "scores_l2_tune.csv", index=False)
+    c.to_csv(OUT / "calibration_l2_tune.csv", index=False)
+    order = ["clim_origin", *names]
+    pairs = [(a, "clim_origin") for a in names] + list(zip(order[2:], order[1:-1]))
+    cis = []
+    for a, b in pairs:
+        both = pd.concat([loss[a].rename("a"), loss[b].rename("b")], axis=1, join="inner")
+        d = day_ci(both.a - both.b, days.reindex(both.index))
+        cis.append({"model": a, "against": b, "n": len(both), **d})
+    ci = pd.DataFrame(cis)
+    ci.to_csv(OUT / "ci_l2_tune.csv", index=False)
+    pd.set_option("display.width", 200, "display.max_columns", 30)
+    for m in ("brier_multi", "brier_late", "brier_cancelled"):
+        print(m, s.pivot(index="group", columns="model", values=m)[order].round(4), sep="\n")
+    print(ci.round(5).to_string(index=False))
+    gap = c.assign(g=(c.mean_pred - c.observed).abs() * c.n).groupby(["model", "event"])
+    print((gap.g.sum() / gap.n.sum()).unstack().round(4))
+    print(c[(c.model == "final_l2") & (c.event == "late")].round(3).to_string(index=False))
+
+
 def main(cmd: str) -> None:
     if cmd == "time":
         X, r, _ = load_split("fit")
@@ -199,6 +242,11 @@ def main(cmd: str) -> None:
             run(f"l2_{l2:g}_lr0.1_leaves63", "abcde", {**STRESS, "l2_regularization": l2})
     elif cmd == "refit":
         run("final_l2", "abcde", REFIT, quarter=False)
+    elif cmd == "ablate_l2":
+        for g in GROUPS:
+            run(f"l2abl_{g}", g, REFIT)
+    elif cmd == "score_l2":
+        score_l2()
     elif cmd in ("tune", "test"):
         score_all(cmd)
     else:

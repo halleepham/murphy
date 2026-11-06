@@ -1,8 +1,19 @@
 # Build plan
 
-Rewritten 6 Nov 2026 around the layers of the finished application (`0010`). It
-replaces the step list of the same date (see git history). **Everything not marked
+Rewritten 6 Nov 2026 around the finished application and the owner's objective
+(`0010`). It replaces earlier versions (see git history). **Everything not marked
 built is proposed.**
+
+## Objective
+
+> **Help travelers with a deadline decide whether to keep or change their flight, and
+> show the evidence behind each recommendation so they understand why.**
+
+In detail: given an itinerary and a deadline, predict the probability of arriving on
+time using only information available at the time of the forecast. Recommend changing
+flights only when the expected benefit outweighs the cost, and support each
+recommendation with traceable evidence. Measure prediction and recommendation quality
+against simpler baselines.
 
 ## What murphy is
 
@@ -30,54 +41,53 @@ saved.
 repository. No assignment slides or reports. The only real deadline is 9 Nov 2026;
 the owner wants the work done as though it were not there, so it does not run short.
 
-## The research claim
+## What trust means
 
-Working wording (owner may still change it, `0010` Decision 5):
-
-> A tool that recommends a flight change only when its evidence is solid gives
-> better advice than one that simply follows its prediction.
-
-**"Better"** means fewer unneeded changes without more missed deadlines. The claim
-could fail. If it does, that is the result, and it gets reported.
-
-**What trust means:** not one score, and not a claim that the forecast is right. It
-has three parts:
+Not one score, and not a claim that the forecast is right. The user can check the
+reasons:
 
 | Part | Measured? | What the user sees |
 |---|---|---|
 | Evidence shown | Listed, not scored | What was used and what was missing for this flight |
 | Track record | A number, from past results | How often similar forecasts came true |
-| Holds up | Pass or fail, from defined checks | Whether the advice survives other models and the cost range |
+| Holds up | Pass or fail, from defined checks | Whether the advice survives the cost range and cutoffs |
 
 Airline notices, live aircraft position and similar data are missing for every
 flight, so they are stated limitations, not per-flight signals.
 
-**Test 1: do the trust checks mean anything?** Among forecasts with similar predicted
-risk, do those with weaker evidence or advice that does not hold up turn out worse?
-If not, stop and rethink.
+## How we show it works
 
-**Test 2: is the advice good?** Replay real trips, assuming the traveler takes the
-recommendation. Keeping the flight is the default. Main measures: did we correctly
-predict that the current flight would not work out, and did the recommended
-alternative make it? Compare with no change at all (what happens without murphy), a
-recommender using climatology, and the same model without the trust checks. Also
-count missed deadlines and unneeded changes, with confidence intervals resampled by
-day. Costs are estimates, so test a range.
+| Question | Compared against | Status |
+|---|---|---|
+| Is the forecast good? | Climatology | Measured on 2025 (`0010` Finding 2) |
+| Which inputs help? | Schedule; then history; current state and aircraft; weather | Measured on 2025 (`0010` Finding 2) |
+| Does network information help? | With and without communities; with and without GNN | Not built |
+| Are recommendations good? | No change at all; a simple climatology recommender | Not built |
+| Do trust checks and cost help? | The recommender with and without each | Not built |
+| Is retrieval good? | Vector vs BM25 | Not built |
+| Are answers grounded? | GraphRAG vs plain retrieval; every value traces to a source | Not built |
+
+**Are recommendations good?** Replay real trips, assuming the traveler takes the
+recommendation. Keeping the flight is the default. Did we correctly predict that the
+current flight would not work out, and did the best alternative make it? Also count
+missed deadlines and unneeded changes, with confidence intervals resampled by day.
+Costs are estimates, so test a range.
+
+A method that does not help is still reported, with its limits and why it may have
+failed. A claim that one helps needs evidence.
 
 **Not tested:** whether seeing the evidence changes what people do. That needs real
 users. It is stated as a limitation.
 
-**Data use:** 2024–25 to develop, using forecasts from models trained only on
-earlier data. **2026 stays sealed** until everything tested on it is committed
-to git, then it is opened once. 2026 ends in August, so fall and holiday travel
-go untested. 2025 is not pristine, because its results have already been seen.
+**Data use:** train on 2023–24, develop on 2025 (`0010` Decision 6). **2026 stays
+sealed** until everything tested on it is committed to git, then it is opened once.
+2026 ends in August, so fall and holiday travel go untested. 2025 is not pristine,
+because its results have already been seen and settings were chosen on it.
 
 ## How it is built
 
 **One real model, with simple code around it.** Training is the only step that is
-slow to redo, so it is done once at full quality, after the inputs are chosen. Other
-layers start simple and grow. A late input means retraining and rerunning the scoring
-scripts, so it costs machine time, not a restart.
+slow to redo. A first complete path through every layer comes early, then each grows.
 
 ## The layers, in build order
 
@@ -86,71 +96,64 @@ scripts, so it costs machine time, not a restart.
 ### 2. Single-flight forecast. *Built, scored on 2025 only* (`0008`, `0010`).
 
 78 inputs, 16 outcomes, gradient boosting with `l2_regularization` 10. Multiclass
-Brier 0.5553 on 2025 against 0.6026 for by-origin climatology. Calibration on this
-model is not yet computed. Lead times are 24, 6 and 2 hours. More than 24 hours out,
-the app says it is too early for a reliable forecast.
+Brier 0.5553 on 2025 against 0.6026 for by-origin climatology. Lead times are 24, 6
+and 2 hours. More than 24 hours out, the app says it is too early for a reliable
+forecast. Calibrated within 0.034 in every bin for "late", running low (`0010` Finding 2).
 
-### 3. Choose the inputs. *Next.*
+### 3. Recommendation and a first app.
 
-Build candidates and screen each on a quarter-sized fit, on 2024–25, against the
-version without it. Keep an input only if it helps:
-
-- **Communities: risk is not isolated.** Louvain or Leiden over airports or flights
-  whose disruptions move together. *Course asks for:* what the communities mean, and
-  an ablation with vs without.
-- **Similar past flights.** Retrieval finds them; code computes what happened to
-  them. Only flights known before the forecast time count.
-
-An input that does not help the score can still serve as evidence for layer 7.
-
-### 4. Retrain walk-forward. Once.
-
-Train on the past, predict the next six months, across 2024–25. Each fold picks its
-round from the last months of its own training data. Measure one fold first.
-
-### 5. Recommendation.
-
-In code, not the LLM: chance of making the deadline, then keep or consider changing.
-Change only if the current flight's chance of missing is high and an alternative
-lowers it by a large margin. Cutoffs are tested on 2024–25 and the owner picks from
-the results. List several alternatives and mark the best. Forecasts cover about 9.4%
-of flights, so inputs must be built for alternatives on the replay routes and days;
-measure that first. Single-flight deadlines first, then connections, where two legs
-can share one storm.
+In code, not the LLM: chance of making the deadline, then keep, consider changing, or
+too uncertain to say. Change only if the current flight's chance of missing is high
+and an alternative lowers it by a large margin. Cutoffs are tested on 2025 and the
+owner picks from the results. List several alternatives and mark the best. Forecasts
+cover about 9.4% of flights, so inputs must be built for alternatives on the replay
+routes and days; measure that first. Single-flight deadlines first, then connections,
+where two legs can share one storm.
 
 **Cost:** one quarter of DB1B route fares plus a tested range for the last-minute
-premium, as fare difference or new ticket. Needs its own decision record. Fallback: a
-labeled fare by distance. The user can replace the estimate. A past schedule shows
-that a flight existed, not that it had a seat.
+premium, as fare difference or new ticket. It shows how murphy weighs cost; it is not
+an accurate picture of fares, and no result is reported as real dollars saved. Needs
+its own decision record. Fallback: a labeled fare by distance. The user can replace
+the estimate. A past schedule shows that a flight existed, not that it had a seat.
 
-### 6. Knowledge graph (Neo4j).
+**App:** not Streamlit (`0003`). One screen first; layer 7 finishes it.
 
-Airports, flights, aircraft, carriers, weather and policies, so users can explore why
-a risk exists. Finds alternatives if that proves better than a query. *Course asks
-for:* 4–8 node types, 4–10 relationship types, a multi-hop query, one query showing
-why a graph helps, and a look at 2–3 existing ontologies.
+### 4. Network inputs, tested with and without.
 
-### 7. Trust.
+- **Communities.** Louvain or Leiden over airports or flights whose disruptions move
+  together, using `networkx`. Also whether an alternative shares the current flight's
+  disruption. *Course asks for:* what the communities mean, and an ablation.
+- **GNN** (`0010` Decision 6). A model over airports and flights that predicts each
+  airport's disruption, fed to the forecast as an input. Start simple; try an STGNN
+  only if the simple one shows promise. *Course says:* a small working example is
+  enough, including how it could rank nodes before retrieval.
 
-The three parts above. Run Test 1 and Test 2. Add "do sources agree" (model, similar
-flights, the airport's current state) if layers 3 and 6 are ready.
+Only information known at the forecast time counts. If either helps, retrain once and
+rerun the scoring.
 
-### 8. Explanation.
+### 5. Knowledge graph and evidence.
 
+- **Neo4j.** Airports, flights, aircraft, carriers, weather and policies, so users can
+  explore why a risk exists. *Course asks for:* 4–8 node types, 4–10 relationship
+  types, a multi-hop query, one query showing why a graph helps, and a look at 2–3
+  existing ontologies.
 - **GraphRAG.** Question → Neo4j retrieval → LLM → grounded answer, with the evidence
   shown. *Course asks for:* three question types (basic, multi-hop, analytics), a
   baseline comparison, and a stated limitation.
-- **Vector retrieval.** Policies and similar past days as evidence. *Course asks for:*
-  a comparison against a simpler method, such as BM25.
-- **GNN.** A small message-passing example (GCN, GraphSAGE or GAT), and how it could
-  rank nodes before retrieval. *Course says:* a small working example is enough.
-- **GenAI.** Itinerary text → validated schema; plain-language explanations; at least
-  one presentation beyond a static chart, such as a what-if on the user's deadline.
-  Generated content must match the computed findings.
+- **Vector retrieval.** Policies and similar past flights as evidence; code computes
+  what happened to them. Test as a model input if time allows. *Course asks for:* a
+  comparison against a simpler method, such as BM25.
+- **Trust.** The three parts above.
 
-### 9. Application.
+### 6. GenAI.
 
-Not Streamlit (`0003`). Enter a flight and a time constraint; see:
+Itinerary text → validated schema; plain-language explanations; at least one
+presentation beyond a static chart, such as a what-if on the user's deadline.
+Generated content must match the computed findings.
+
+### 7. Finish the application.
+
+Enter a flight and a time constraint; see:
 
 - the chance of making it, and the range of outcomes;
 - keep or consider changing, or too uncertain to say;
@@ -159,15 +162,14 @@ Not Streamlit (`0003`). Enter a flight and a time constraint; see:
 - how the forecast changes at each lead time.
 
 *Human controls:* change the deadline, replace the cost, inspect evidence, compare
-alternatives, correct or reject a result. Include a shared-risk or graph view if
-ready. A first simple version comes early and grows with the layers.
+alternatives, correct or reject a result. Include a shared-risk or graph view if ready.
 
-### 10. Freeze and the sealed test.
+### 8. Freeze and the sealed test.
 
 Commit everything, then score 2026 once. Anything added after the freeze is reported
-as tested on 2024–25 only, never as tested on 2026.
+as tested on 2025 only, never as tested on 2026.
 
-### 11. Deliverables.
+### 9. Deliverables.
 
 Research poster; demo; README with purpose, architecture, data, results and run steps.
 Deployed, or a local demo with the limit stated.
@@ -187,5 +189,4 @@ Deployed, or a local demo with the limit stated.
 
 ## Open
 
-1. **Claim wording.** The owner may change it.
-2. **Recommendation details.** The cutoffs, and the cost range.
+1. **Recommendation details.** The cutoffs, and the cost range.

@@ -253,3 +253,58 @@ asked what trust means; `docs/PLAN.md` now defines it. Working claim wording is 
 `docs/PLAN.md`; the owner may still change it. This supersedes the claim and the
 warning-based Test 1 in `0009`.
 
+## Decision 6 — A project objective, one training split, and the GNN
+
+**Owner, 6 Nov 2026:**
+
+- **A project and problem, not a research claim.** The objective is to help travelers
+  with a deadline decide whether to keep or change their flight, and show the evidence
+  behind each recommendation. The AI's longer formal version stays as supporting detail.
+  This supersedes the claim and tests in `0009` and in Decision 5 above.
+- **Comparisons stay.** Murphy is shown at an AI and data science expo, so it needs
+  baselines and ablations.
+- **Walk-forward: not doing it.** AI explained it and recommended one split: train on
+  2023–24, develop on 2025, because the 2025 forecasts are already out of sample.
+  Accepted. Cost: one development year, and no learning from 2025 before the 2026 test.
+- **GNN: option B accepted.** A GNN predicts each airport's disruption and feeds the
+  forecast as an input, starting simple. Rejected: retrieval ranking only; replacing
+  the forecast model. A full GNN is not required by the course. If a method does not
+  work, report what was tried, the limits and possibly why; try to make it work, and
+  back any claim that it does with evidence.
+
+## Finding 2 — Which inputs help, with the fix
+
+**Status:** measured 6 Nov 2026. `gbm.py ablate_l2`, `gbm.py score_l2`. Files
+(gitignored): `data/forecast/gbm/scores_l2_tune.csv`, `calibration_l2_tune.csv`,
+`ci_l2_tune.csv`. lr 0.05, 63 leaves, l2 10; fit on the quarter except the last row;
+2,070,453 forecasts in 2025. 95% intervals resample whole days. Each model's best round
+was picked on 2025, which flatters it, and the intervals do not include that choice.
+
+| Inputs | Multiclass | Late | Cancelled | Change from the row above, with 95% interval |
+|---|---|---|---|---|
+| By-origin climatology | 0.6026 | 0.1793 | 0.0153 | |
+| A, schedule | 0.5933 | 0.1733 | 0.0153 | −0.0093 (−0.0108 to −0.0076) |
+| + B, history | 0.5900 | 0.1710 | 0.0152 | −0.0034 (−0.0037 to −0.0030) |
+| + C, D, current state, aircraft | 0.5636 | 0.1496 | 0.0120 | −0.0264 (−0.0283 to −0.0248) |
+| + E, weather | 0.5575 | 0.1448 | 0.0118 | −0.0060 (−0.0067 to −0.0053) |
+| All, all rows (`final_l2`) | 0.5553 | 0.1438 | 0.0117 | −0.0022 (−0.0024 to −0.0021) |
+
+`final_l2` against climatology: −0.0473 (−0.0497 to −0.0449).
+
+Read: every step helps, and no interval crosses zero. This corrects `0008`, where B
+appeared to hurt (0.5947 to 0.5967); the fault may have caused that. Weather adds about
+nothing where there is none (0.4917 to 0.4915 at airports without it), as it should.
+By lead time, `final_l2` scores 0.5772 at 24 h, 0.5597 at 6 h and 0.5290 at 2 h.
+
+**Calibration of `final_l2`, event "late":** every bin runs low. Weighted mean gap
+0.0126, against 0.0157 for climatology and 0.0160 for the earlier refit.
+
+| Predicted | 0–0.1 | 0.1–0.2 | 0.2–0.3 | 0.3–0.4 | 0.4–0.5 | 0.5–0.6 | 0.6–0.7 | 0.7–0.8 | 0.8–0.9 | 0.9–1 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Mean predicted | 0.072 | 0.145 | 0.244 | 0.345 | 0.445 | 0.546 | 0.646 | 0.748 | 0.851 | 0.946 |
+| Observed | 0.074 | 0.153 | 0.261 | 0.370 | 0.476 | 0.578 | 0.679 | 0.779 | 0.885 | 0.974 |
+
+"Cancelled" has a weighted gap of 0.0019, the same as climatology. No correction is
+applied. A low forecast understates the risk of missing a deadline, so the recommendation
+layer must account for it.
+

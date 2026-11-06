@@ -30,6 +30,23 @@ def multiclass_brier(p: np.ndarray, outcome: pd.Series) -> float:
     return float(((p - y) ** 2).sum(axis=1).mean())
 
 
+def row_brier(df: pd.DataFrame) -> pd.Series:
+    """Multiclass Brier for each forecast, indexed by flight and lead time."""
+    y = (df["outcome"].to_numpy()[:, None] == np.array(CLASSES)[None, :]).astype(float)
+    loss = ((df[PCOLS].to_numpy() - y) ** 2).sum(axis=1)
+    return pd.Series(loss, index=pd.MultiIndex.from_frame(df[["flight_id", "lead_h"]]))
+
+
+def day_ci(diff: pd.Series, days: pd.Series, n_boot: int = 1000, seed: int = 0) -> dict:
+    """Mean of diff, with a 95% interval resampling whole days, since flights on one
+    day share weather and delays and are not independent."""
+    g = pd.DataFrame({"d": diff.to_numpy(), "day": days.to_numpy()}).groupby("day").d.agg(["sum", "size"])
+    pick = np.random.default_rng(seed).integers(0, len(g), (n_boot, len(g)))
+    boot = g["sum"].to_numpy()[pick].sum(axis=1) / g["size"].to_numpy()[pick].sum(axis=1)
+    return {"diff": float(g["sum"].sum() / g["size"].sum()), "lo": float(np.quantile(boot, 0.025)),
+            "hi": float(np.quantile(boot, 0.975))}
+
+
 def event_prob(df: pd.DataFrame, event: str) -> np.ndarray:
     return df[[col(c) for c in EVENTS[event]]].sum(axis=1).to_numpy()
 

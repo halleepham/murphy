@@ -119,3 +119,16 @@ def test_l2_shrinks_the_largest_leaf():
                                              min_samples_leaf=2, l2_regularization=l2).fit(X, y))
              for l2 in (0.0, 10.0)]
     assert sizes[1] < sizes[0]
+
+
+def test_day_interval_widens_when_a_day_moves_together():
+    """Failure case: treating one day's flights as independent would look too certain."""
+    from murphy.forecast.score import day_ci
+    g = np.random.default_rng(0)
+    days = pd.Series(np.repeat(np.arange(50), 100))
+    shared = pd.Series(np.repeat(g.normal(0, 1, 50), 100))
+    noise = pd.Series(g.permutation(shared.to_numpy()))  # same values, no day pattern
+    a, b = day_ci(shared, days), day_ci(noise, days)
+    assert a["lo"] <= a["diff"] <= a["hi"]
+    assert a["hi"] - a["lo"] > 3 * (b["hi"] - b["lo"])
+
