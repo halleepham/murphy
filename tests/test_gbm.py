@@ -109,3 +109,13 @@ def test_useful_input_beats_simpler_baseline():
     share = yn.value_counts(normalize=True).reindex(CLASSES, fill_value=0).to_numpy()
     base = np.tile(share, (len(yn), 1))  # no inputs: class shares from the same sample
     assert multiclass_brier(gbm.predict(m, Xn), yn) < multiclass_brier(base, yn) - 0.05
+
+
+def test_l2_shrinks_the_largest_leaf():
+    """0010: a thin leaf on a rare class is the suspected blow-up. L2 must shrink it."""
+    X, y = data()
+    y = y.where(X.x > 0.002, "diverted")  # a rare class in a thin corner
+    sizes = [gbm.largest_leaf(gbm.make_model(30, learning_rate=0.1, max_leaf_nodes=31,
+                                             min_samples_leaf=2, l2_regularization=l2).fit(X, y))
+             for l2 in (0.0, 10.0)]
+    assert sizes[1] < sizes[0]

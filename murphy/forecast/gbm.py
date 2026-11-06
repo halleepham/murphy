@@ -12,6 +12,8 @@ Commands (results in data/forecast/gbm/, resumable: finished runs are skipped):
   python -m murphy.forecast.gbm grid     the settings below, all inputs, on 2025
   python -m murphy.forecast.gbm ablate   best settings on smaller input sets, on 2025
   python -m murphy.forecast.gbm final    best settings, every 2023-24 flight
+  python -m murphy.forecast.gbm l2       stress test of l2 on the unstable settings (0010)
+  python -m murphy.forecast.gbm refit    lr 0.05 and l2 on every 2023-24 flight (0010)
   python -m murphy.forecast.gbm tune     scores and calibration on 2025
   python -m murphy.forecast.gbm test     2026, once, for models picked on 2025
 """
@@ -35,6 +37,9 @@ OUT = OUT_DIR / "gbm"
 GROUPS = ("a", "ab", "abcd", "abcde")  # the ablation, simplest first
 GRID = [{"learning_rate": lr, "max_leaf_nodes": leaves}
         for lr in (0.05, 0.1) for leaves in (15, 31, 63)]
+L2_TRIALS = (1.0, 10.0)  # 0010 Decision 1
+STRESS = {"learning_rate": 0.1, "max_leaf_nodes": 63}  # the worst blow-ups in the grid
+REFIT = {"learning_rate": 0.05, "max_leaf_nodes": 63, "l2_regularization": 10.0}  # 0010
 MAX_ROUNDS = 300
 EVERY = 25
 INFO = ["flight_id", "lead_h", "origin", "dest", "outcome", "split"]
@@ -88,6 +93,12 @@ def staged_scores(model, X, outcome, every: int = EVERY) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def largest_leaf(model) -> float:
+    """Largest leaf value in any tree, in log-odds. Over 20 is near-certainty (0010)."""
+    return max(float(np.abs(t.nodes["value"][t.nodes["is_leaf"].astype(bool)]).max())
+               for trees in model._predictors for t in trees)
+
+
 def run(name: str, groups: str, settings: dict, rounds: int = MAX_ROUNDS,
         quarter: bool = True) -> dict:
     """Fit on 2023-24, score on 2025, save. Skipped if already done."""
@@ -106,6 +117,7 @@ def run(name: str, groups: str, settings: dict, rounds: int = MAX_ROUNDS,
     joblib.dump({"model": model, "carriers": carriers, "groups": groups}, OUT / f"{name}.joblib")
     result = {"name": name, "groups": groups, **settings, "fit_rows": n_fit, "fit_s": round(fit_s),
               "best_rounds": int(best.rounds), "tune_brier": float(best.brier_multi),
+              "largest_leaf": largest_leaf(model),
               "last_rounds": int(scores.rounds.iloc[-1]),
               "last_brier": float(scores.brier_multi.iloc[-1]),
               "curve": scores.to_dict("list")}
@@ -182,6 +194,11 @@ def main(cmd: str) -> None:
         b = best_grid()
         s = {"learning_rate": float(b.learning_rate), "max_leaf_nodes": int(b.max_leaf_nodes)}
         run("final", "abcde", s, rounds=int(b.best_rounds), quarter=False)
+    elif cmd == "l2":
+        for l2 in L2_TRIALS:
+            run(f"l2_{l2:g}_lr0.1_leaves63", "abcde", {**STRESS, "l2_regularization": l2})
+    elif cmd == "refit":
+        run("final_l2", "abcde", REFIT, quarter=False)
     elif cmd in ("tune", "test"):
         score_all(cmd)
     else:
