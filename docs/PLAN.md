@@ -198,5 +198,4 @@ Deployed, or a local demo with the limit stated.
 
 ## Open
 
-1. **Recommendation details.** Cutoffs (`0013`), "too uncertain" and the baseline (`0014`) are chosen. Still open: the cost range.
-2. **Cutoffs after the refit (`0014` Finding 3).** Whether to keep the 50% risk cutoff and the 40-60% band now that the numbers have changed. Not decided.
+1. **Recommendation details.** Cutoffs (`0013`), "too uncertain", the baseline and the refit (`0014`) are chosen. Still open: the cost range.

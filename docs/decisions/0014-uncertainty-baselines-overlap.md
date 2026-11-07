@@ -213,7 +213,15 @@ are the weak ones: more of them are needless than at 60% and up.
 - The `0011` lead-time scores on the 30,000-flight sample were not rerun.
 - The rule-of-thumb baseline also uses hidden inputs. 18 of its 1,380 flags at 60 minutes have no saved alternatives and count as no change.
 
-**Open, for the owner:** whether to keep the cutoffs and the 40-60% band now that the numbers have changed.
+## Decision 4 — Keep the band after the refit
+
+**AI recommended, owner accepted, 6 Nov 2026:** keep too uncertain from 40% up to 60%, and firm "consider changing" from
+60%, with `final_clean`. From 50% to 60% a change rescues the trip about as often as it is needless (1,169 against 1,063), which
+does not fit "only when really needed". Those flights still list their alternatives.
+
+**Cost accepted:** 4,489 changes and net 1.12 per 1,000, against 7,466 and 1.63 from 50%; needless falls from 22.8% to 14.2%.
+**Rejected:** firm advice from 50% with a 40-50% band, which has the higher net. Gain (15 points) and the 2 h limit stay. **Not built:**
+the app's verdict; `MIN_MISS` in `murphy/recommend.py` stays 50% as the replay's setting until then.
 
 ## Tests
 
