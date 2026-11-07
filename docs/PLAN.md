@@ -61,7 +61,7 @@ flight, so they are stated limitations, not per-flight signals.
 | Is the forecast good? | Climatology | Measured on 2025 (`0010` Finding 2) |
 | Which inputs help? | Schedule; then history; current state and aircraft; weather | Measured on 2025 (`0010` Finding 2) |
 | Does network information help? | With and without communities; with and without GNN | Not built |
-| Are recommendations good? | No change at all; a traveler's rule of thumb (`0014`). Climatology and the schedule-only model almost never act | Measured on 2025, with a possible leak (`0014` Finding 1) |
+| Are recommendations good? | No change at all; a traveler's rule of thumb (`0014`). Climatology and the schedule-only model almost never act | Measured on 2025 with `final_clean` (`0014` Finding 3) |
 | Do trust checks and cost help? | The recommender with and without each | Not built |
 | Is retrieval good? | Vector vs BM25 | Not built |
 | Are answers grounded? | GraphRAG vs plain retrieval; every value traces to a source | Not built |
@@ -96,8 +96,8 @@ slow to redo. A first complete path through every layer comes early, then each g
 
 78 inputs, 16 outcomes, gradient boosting with `l2_regularization` 10. Multiclass
 Brier 0.5553 on 2025 against 0.6026 for by-origin climatology; these figures are for
-`final_l2`, trained at 24, 6 and 2 hours. `final_leads` replaces it for recommendations
-and has been scored on a 30,000-flight sample only (`0011`). More than 24 hours out, the app says it is too early for a reliable
+`final_l2`, trained at 24, 6 and 2 hours, and include a leak of hindsight (`0014`). `final_clean` replaces it
+for recommendations, with hindsight hidden: Brier 0.5612 on 2025 (`0014` Finding 3). More than 24 hours out, the app says it is too early for a reliable
 forecast. Calibrated within 0.034 in every bin for "late", running low (`0010` Finding 2).
 
 ### 3. Recommendation and a first app.
@@ -199,4 +199,4 @@ Deployed, or a local demo with the limit stated.
 ## Open
 
 1. **Recommendation details.** Cutoffs (`0013`), "too uncertain" and the baseline (`0014`) are chosen. Still open: the cost range.
-2. **A possible leak (`0014` Findings 1 and 2).** Overlapping turns and missing tail numbers may be hindsight; together they supply 47% of flagged forecasts. The owner chose to refit, but blanking does not work (Finding 2), so how to hide them is open.
+2. **Cutoffs after the refit (`0014` Finding 3).** Whether to keep the 50% risk cutoff and the 40-60% band now that the numbers have changed. Not decided.

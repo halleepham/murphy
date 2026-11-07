@@ -28,7 +28,7 @@ SETS = {"full": (OUT_DIR / "rows.parquet", ft.OUT), "fit": (OUT / "fit_rows.parq
         "grid": (OUT / "grid_rows.parquet", OUT / "grid_features"), "unseen": (OUT / "unseen_rows.parquet", OUT / "unseen_features")}
 KEYS = ["flight_id", "lead_h"]
 SPREAD = (1, 2, 3, 4, 6, 9, 12, 18, 24)  # as in refit_leads
-MATCH = lambda a, r: [a.carrier, a.local_hour, r.origin]  # the closest of 14 tried by the probe (0014)
+MATCH = lambda a, r: [a.carrier, a.local_hour, r.origin]  # 0.7696, among the closest of 13 tried by the probe (0014)
 pd.set_option("display.width", 220, "display.max_columns", 40, "display.max_rows", 200)
 
 

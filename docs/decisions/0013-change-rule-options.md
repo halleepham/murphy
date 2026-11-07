@@ -215,7 +215,7 @@ earlier; `latest` is the last-leaving flight that clears the gain.
 
 ## Options that were open, now decided in `0014`
 
-`0014` also found a possible leak that affects every result in this record (its Finding 1).
+`0014` found a leak of hindsight in `final_leads`, so every result in this record is flattered. The fair results are in `0014` Finding 3.
 
 **What "too uncertain to say" means:** (a) close to the cutoff, such as a risk from 40% to 60%;
 (b) thin evidence, such as few past flights on that route and carrier; (c) the advice flips when the
