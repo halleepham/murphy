@@ -87,7 +87,38 @@ seen 24 h out is already an assumption (`0006`), and `0008` noted these odd turn
 effect on the forecast scores in `0010` and `0011` is unmeasured. All earlier replay results in `0013` include
 these flights.
 
-**Open, for the owner:** see the options in the PLAN's Open section. Nothing has been changed in the model.
+**Owner, 6 Nov 2026:** chose option (a), blank the overlaps and refit. Finding 2 shows that (a) as
+written does not work. Nothing has been changed in the model.
+
+## Finding 2 — Blanks leak too, and "no overlap" is not a fair test
+
+Checked before fitting, because a blank close to departure could itself carry a signal. It does.
+`aircraft_kinds.csv`, 60-minute deadline; 24 h has no aircraft inputs for any flight:
+
+| Forecast | Aircraft inputs | Forecasts | Predicted miss | True miss | Cancelled | Flagged |
+|---|---|---|---|---|---|---|
+| 2 h | Normal | 667,946 | 7.6% | 8.2% | 0.7% | 16,117 |
+| 2 h | Overlap | 13,228 | 63.6% | 64.2% | 16.1% | 10,000 |
+| 2 h | Prior leg's delay blank | 7,330 | 44.7% | 47.6% | 33.6% | 2,932 |
+| 2 h | No tail number | 1,647 | 93.7% | 98.5% | 98.1% | 1,576 |
+| 6 h | Normal | 671,250 | 7.5% | 8.5% | 0.9% | 3,741 |
+| 6 h | Overlap | 13,500 | 62.3% | 63.6% | 16.1% | 10,167 |
+| 6 h | Prior leg's delay blank | 3,754 | 31.8% | 32.2% | 18.2% | 697 |
+| 6 h | No tail number | 1,647 | 92.6% | 98.5% | 98.1% | 1,561 |
+
+**A second leak.** A flight with no tail number was almost always cancelled: BTS seems to leave the
+tail empty when no aircraft flew. The model reads that at 2 and 6 h, before anyone could know. It adds
+3,137 flagged forecasts.
+
+**Why blanking fails.** Blanks are rare near departure, so overlaps blanked this way would simply teach
+the model that a blank means trouble. The leak would remain, in a different column.
+
+**Why "no overlap" is unfair.** Finding 1's table removes trips with a 64% true miss, so it removes hard
+trips because of what later happened. The 1.90 is therefore not a fair estimate. A fair test keeps every
+trip and hides what could not be known. "Prior leg's delay blank" mostly means that leg was cancelled, which
+can be known in time; it stays.
+
+**Open, for the owner:** how to treat these flights in the refit. Not fitted yet.
 
 ## Tests
 

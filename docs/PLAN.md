@@ -199,4 +199,4 @@ Deployed, or a local demo with the limit stated.
 ## Open
 
 1. **Recommendation details.** Cutoffs (`0013`), "too uncertain" and the baseline (`0014`) are chosen. Still open: the cost range.
-2. **A possible leak (`0014` Finding 1).** Overlapping turns may be hindsight, and they supply 41% of flagged forecasts. Options: (a) blank the turn and delay when the turn overlaps, then refit; (b) use the tail only much nearer departure, then refit; (c) keep the model and report results with and without. AI recommends (a). Not decided.
+2. **A possible leak (`0014` Findings 1 and 2).** Overlapping turns and missing tail numbers may be hindsight; together they supply 47% of flagged forecasts. The owner chose to refit, but blanking does not work (Finding 2), so how to hide them is open.

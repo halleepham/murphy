@@ -139,6 +139,12 @@ def turn_table(cur, buf=60) -> None:
     print(t.round(3).to_string())
     print(pd.DataFrame({"flagged": a.groupby("lead_h").flag.sum(), "flagged_overlap": a[a.turn < 0].groupby("lead_h").flag.sum(),
                         "overlap": a[a.turn < 0].groupby("lead_h").size()}).fillna(0).astype(int).to_string())
+    kind = np.select([cur.prior_turn_min.isna(), cur.prior_delay_so_far.isna(), cur.prior_turn_min < 0],
+                     ["no tail", "delay blank", "overlap"], "normal")
+    k = a.assign(kind=kind, cancelled=(cur.outcome == "cancelled").to_numpy()).groupby(["lead_h", "kind"]).agg(
+        forecasts=("miss", "size"), pred_miss=("risk", "mean"), true_miss=("miss", "mean"), cancelled=("cancelled", "mean"), flagged=("flag", "sum"))
+    k.to_csv(R / "aircraft_kinds.csv")
+    print(k.round(3).to_string())
     naive = cur.prior_delay_so_far > buf
     print(f"ignoring the turn: {naive.sum():,} flags, true miss {miss[naive].mean():.3f}", flush=True)
 
