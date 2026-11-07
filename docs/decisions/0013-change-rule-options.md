@@ -213,7 +213,9 @@ earlier; `latest` is the last-leaving flight that clears the gain.
 733,505. Alternative rows: 732,747. Forecasting current flights took 309 s, building alternative inputs
 953 s, and forecasting alternatives 102 s.
 
-## Open — Options for the owner, not measured
+## Options that were open, now decided in `0014`
+
+`0014` also found a possible leak that affects every result in this record (its Finding 1).
 
 **What "too uncertain to say" means:** (a) close to the cutoff, such as a risk from 40% to 60%;
 (b) thin evidence, such as few past flights on that route and carrier; (c) the advice flips when the

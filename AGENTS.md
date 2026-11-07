@@ -34,9 +34,9 @@ reconstructing them at submission time:
    against a *simpler* baseline.
 
 **Human Design stages are co-planned** (owner's decision, `0002`). Propose
-options with a recommendation; the owner decides. Deadlines have passed:
-build only the end product, no slides or reports, but use every required
-method.
+options with a recommendation; the owner decides. The only deliverables are
+the application, a research poster, a demo and the repository. Use every
+required method.
 
 ## Rules from the assignments — not negotiable
 

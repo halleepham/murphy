@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from murphy.forecast.sample import CLASSES
-from murphy.recommend import made_it, p_make, should_change
+from murphy.recommend import inbound_too_late, made_it, p_make, should_change
 
 
 def probs(**kw):
@@ -37,3 +37,14 @@ def test_rule_needs_both_conditions():
 
 def test_no_alternative_means_keep():
     assert not should_change([0.1], [np.nan], 0.3, 0.1)[0]
+
+
+def test_inbound_rule_counts_the_turn():
+    # 90 late with a 60-minute turn is 30 past departure: fits a 60-minute deadline, not a 15.
+    assert inbound_too_late([90], [60], 15)[0]
+    assert not inbound_too_late([90], [60], 60)[0]
+    assert not inbound_too_late([120], [600], 60)[0]  # late hours ago, long turn: no reason to change
+
+
+def test_inbound_rule_blank_never_fires():
+    assert not inbound_too_late([np.nan, 120], [60, np.nan], 15).any()

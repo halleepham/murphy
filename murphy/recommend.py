@@ -41,3 +41,9 @@ def should_change(p_make_current, p_make_best_alt, min_miss: float = MIN_MISS,
     trip with no alternative has a blank best alternative and never changes."""
     cur, alt = np.asarray(p_make_current, dtype=float), np.asarray(p_make_best_alt, dtype=float)
     return ((1 - cur) >= min_miss) & (np.nan_to_num(alt - cur, nan=-1.0) >= min_gain)
+
+
+def inbound_too_late(delay_so_far, turn_min, slack_min) -> np.ndarray:
+    """The traveler's rule of thumb: the inbound aircraft's lateness outlasts its scheduled
+    turn by more than the deadline allows. A blank delay or turn says nothing, so never fires."""
+    return (np.asarray(delay_so_far, dtype=float) - np.asarray(turn_min, dtype=float)) > slack_min

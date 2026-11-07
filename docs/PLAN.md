@@ -38,8 +38,7 @@ they are not an accurate picture of fares, and no result is reported as real dol
 saved.
 
 **Deliverables:** the application, a research poster, a demo, and the GitHub
-repository. No assignment slides or reports. The only real deadline is 9 Nov 2026;
-the owner wants the work done as though it were not there, so it does not run short.
+repository.
 
 ## What trust means
 
@@ -62,7 +61,7 @@ flight, so they are stated limitations, not per-flight signals.
 | Is the forecast good? | Climatology | Measured on 2025 (`0010` Finding 2) |
 | Which inputs help? | Schedule; then history; current state and aircraft; weather | Measured on 2025 (`0010` Finding 2) |
 | Does network information help? | With and without communities; with and without GNN | Not built |
-| Are recommendations good? | No change at all; a simple climatology recommender | Not built |
+| Are recommendations good? | No change at all; a traveler's rule of thumb (`0014`). Climatology and the schedule-only model almost never act | Measured on 2025, with a possible leak (`0014` Finding 1) |
 | Do trust checks and cost help? | The recommender with and without each | Not built |
 | Is retrieval good? | Vector vs BM25 | Not built |
 | Are answers grounded? | GraphRAG vs plain retrieval; every value traces to a source | Not built |
@@ -199,4 +198,5 @@ Deployed, or a local demo with the limit stated.
 
 ## Open
 
-1. **Recommendation details.** Cutoffs chosen (`0013`). Still open: the cost range, "too uncertain to say", and a simple baseline that acts.
+1. **Recommendation details.** Cutoffs (`0013`), "too uncertain" and the baseline (`0014`) are chosen. Still open: the cost range.
+2. **A possible leak (`0014` Finding 1).** Overlapping turns may be hindsight, and they supply 41% of flagged forecasts. Options: (a) blank the turn and delay when the turn overlaps, then refit; (b) use the tail only much nearer departure, then refit; (c) keep the model and report results with and without. AI recommends (a). Not decided.
