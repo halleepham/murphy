@@ -32,3 +32,11 @@ does not show that the weather caused the risk, and the app must say so.
 **Question answering.** The course warns against generic chatbots. Proposed: treat this as
 the GraphRAG of layer 5, so it answers from retrieved evidence and computed results, shows
 its sources, and declines when evidence is thin. Numbers still come from code.
+
+## Decision 2 — Timing of the map and the chat
+
+**Owner, 6 Nov 2026:**
+
+- **Map: waits** until communities and the other graph work (layer 4) are done.
+- **Chat on GraphRAG: possible, not decided.** The owner wants to see how GraphRAG
+  performs first.

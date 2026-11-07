@@ -199,4 +199,4 @@ Deployed, or a local demo with the limit stated.
 
 ## Open
 
-1. **Recommendation details.** The cutoffs, and the cost range.
+1. **Recommendation details.** Cutoffs chosen (`0013`). Still open: the cost range, "too uncertain to say", and a simple baseline that acts.
