@@ -96,11 +96,17 @@ slow to redo. A first complete path through every layer comes early, then each g
 ### 2. Single-flight forecast. *Built, scored on 2025 only* (`0008`, `0010`).
 
 78 inputs, 16 outcomes, gradient boosting with `l2_regularization` 10. Multiclass
-Brier 0.5553 on 2025 against 0.6026 for by-origin climatology. Lead times are 24, 6
-and 2 hours. More than 24 hours out, the app says it is too early for a reliable
+Brier 0.5553 on 2025 against 0.6026 for by-origin climatology; these figures are for
+`final_l2`, trained at 24, 6 and 2 hours. `final_leads` replaces it for recommendations
+and has been scored on a 30,000-flight sample only (`0011`). More than 24 hours out, the app says it is too early for a reliable
 forecast. Calibrated within 0.034 in every bin for "late", running low (`0010` Finding 2).
 
 ### 3. Recommendation and a first app.
+
+*Measured so far (`0011`):* alternatives per trip and input build cost. The model was
+refit with lead times across 1–24 h (`final_leads`), because the first model's risk
+estimates shifted with lead time. Alternatives are capped at 24 h. Precomputing for the
+app waits until its features are decided. Nothing below is built yet.
 
 In code, not the LLM: chance of making the deadline, then keep, consider changing, or
 too uncertain to say. Change only if the current flight's chance of missing is high
@@ -160,6 +166,10 @@ Enter a flight and a time constraint; see:
 - alternatives, with the best marked and the estimated cost of changing;
 - the evidence and where it came from, the track record, and whether the advice holds up;
 - how the forecast changes at each lead time.
+
+Also from the owner (`0012`): generative AI and an interactive map, with zones such as
+weather or communities where the data supports them. Optional: asking questions about
+policies and why one flight was recommended over another.
 
 *Human controls:* change the deadline, replace the cost, inspect evidence, compare
 alternatives, correct or reject a result. Include a shared-risk or graph view if ready.
