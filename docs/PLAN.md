@@ -11,8 +11,9 @@ built is proposed.**
 
 In detail: given an itinerary and a deadline, predict the probability of arriving on
 time using only information available at the time of the forecast. Recommend changing
-flights only when the expected benefit outweighs the cost, and support each
-recommendation with traceable evidence. Measure prediction and recommendation quality
+flights only when the current flight is likely to miss and an alternative lowers that
+risk by a large margin. Show the estimated cost of a new ticket so the traveler can weigh
+it, and support each recommendation with traceable evidence. Measure prediction and recommendation quality
 against simpler baselines.
 
 ## What murphy is
@@ -33,9 +34,8 @@ whether to keep the flight or consider changing. **The traveler always decides.*
 3. **Its reasons can be checked.** It shows the evidence, how that kind of forecast
    has done before, and whether the advice holds up.
 
-**Proof of concept.** No real users. Estimated costs show how murphy weighs cost;
-they are not an accurate picture of fares, and no result is reported as real dollars
-saved.
+**Proof of concept.** No real users. Estimated costs are what people typically paid on
+a route and airline, not a quote, and no result is reported as real dollars saved.
 
 **Deliverables:** the application, a research poster, a demo, and the GitHub
 repository.
@@ -49,7 +49,7 @@ reasons:
 |---|---|---|
 | Evidence shown | Listed, not scored | What was used and what was missing for this flight |
 | Track record | A number, from past results | How often similar forecasts came true |
-| Holds up | Pass or fail, from defined checks | Whether the advice survives the cost range and cutoffs |
+| Holds up | Pass or fail, from defined checks | Whether the advice survives the cutoffs |
 
 Airline notices, live aircraft position and similar data are missing for every
 flight, so they are stated limitations, not per-flight signals.
@@ -62,7 +62,7 @@ flight, so they are stated limitations, not per-flight signals.
 | Which inputs help? | Schedule; then history; current state and aircraft; weather | Measured on 2025 (`0010` Finding 2) |
 | Does network information help? | With and without communities; with and without GNN | Not built |
 | Are recommendations good? | No change at all; a traveler's rule of thumb (`0014`). Climatology and the schedule-only model almost never act | Measured on 2025 with `final_clean` (`0014` Finding 3) |
-| Do trust checks and cost help? | The recommender with and without each | Not built |
+| Do trust checks help? | The recommender with and without them | Not built |
 | Is retrieval good? | Vector vs BM25 | Not built |
 | Are answers grounded? | GraphRAG vs plain retrieval; every value traces to a source | Not built |
 
@@ -70,7 +70,6 @@ flight, so they are stated limitations, not per-flight signals.
 recommendation. Keeping the flight is the default. Did we correctly predict that the
 current flight would not work out, and did the best alternative make it? Also count
 missed deadlines and unneeded changes, with confidence intervals resampled by day.
-Costs are estimates, so test a range.
 
 A method that does not help is still reported, with its limits and why it may have
 failed. A claim that one helps needs evidence.
@@ -115,11 +114,10 @@ cover about 9.4% of flights, so inputs must be built for alternatives on the rep
 routes and days; measure that first. Single-flight deadlines first, then connections,
 where two legs can share one storm.
 
-**Cost:** one quarter of DB1B route fares plus a tested range for the last-minute
-premium, as fare difference or new ticket. It shows how murphy weighs cost; it is not
-an accurate picture of fares, and no result is reported as real dollars saved. Needs
-its own decision record. Fallback: a labeled fare by distance. The user can replace
-the estimate. A past schedule shows that a flight existed, not that it had a seat.
+**Cost (`0015`):** shown only, never part of the advice. The median fare people paid on the
+route and airline in DB1B 2025 Q2, labeled as an estimate. No premium, because no evidence gives
+one. A last-minute seat may cost more, and the app says so. A past schedule shows that a flight
+existed, not that it had a seat.
 
 **App:** not Streamlit (`0003`). One screen first; layer 7 finishes it.
 
@@ -162,7 +160,7 @@ Enter a flight and a time constraint; see:
 
 - the chance of making it, and the range of outcomes;
 - keep or consider changing, or too uncertain to say;
-- alternatives, with the best marked and the estimated cost of changing;
+- alternatives, with the best marked and the estimated cost of a new ticket, and an option to sort by it;
 - the evidence and where it came from, the track record, and whether the advice holds up;
 - how the forecast changes at each lead time.
 
@@ -170,7 +168,7 @@ Also from the owner (`0012`): generative AI and an interactive map, with zones s
 weather or communities where the data supports them. Optional: asking questions about
 policies and why one flight was recommended over another.
 
-*Human controls:* change the deadline, replace the cost, inspect evidence, compare
+*Human controls:* change the deadline, sort by price, inspect evidence, compare
 alternatives, correct or reject a result. Include a shared-risk or graph view if ready.
 
 ### 8. Freeze and the sealed test.
@@ -198,4 +196,4 @@ Deployed, or a local demo with the limit stated.
 
 ## Open
 
-1. **Recommendation details.** Cutoffs (`0013`), "too uncertain", the baseline and the refit (`0014`) are chosen. Still open: the cost range.
+1. **Recommendation details.** Cutoffs (`0013`), "too uncertain", the baseline and the refit (`0014`) are chosen. Cost is decided (`0015`).
