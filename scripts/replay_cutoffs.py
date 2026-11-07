@@ -7,20 +7,25 @@ the deadline, not already known to be cancelled. The traveler takes the recommen
 Past schedules do not show seats, so an alternative may not have been bookable.
 
 Steps are saved and skipped when rerun. 2025 only.
-Usage: PYTHONPATH=. python scripts/replay_cutoffs.py
+Usage: PYTHONPATH=. python scripts/replay_cutoffs.py        final_leads, as first measured (0013)
+       MURPHY_MODEL=final_clean PYTHONPATH=. python ...     hindsight hidden (0014), in replay_final_clean/
 """
-import time
+import os, time
 import duckdb, joblib, numpy as np, pandas as pd
 from murphy.forecast import features as ft
 from murphy.forecast import gbm
 from murphy.forecast.climatology import OUT_DIR, climatology
+from murphy.forecast.features import hide_hindsight
 from murphy.forecast.sample import ROOT
 from murphy.forecast.score import PCOLS, day_ci
 from murphy.recommend import made_it, p_make, should_change
 
 OUT = OUT_DIR / "alternatives"
-R = OUT / "replay"
-MODEL = OUT / "final_leads.joblib"
+TAG = os.environ.get("MURPHY_MODEL", "final_leads")
+HIDDEN = TAG != "final_leads"  # the original model saw the aircraft inputs unhidden
+R = OUT / ("replay" if not HIDDEN else f"replay_{TAG}")
+MODEL = OUT / f"{TAG}.joblib"
+FEATS = OUT / "clean" / "full" if HIDDEN else ft.OUT
 ROWS = OUT_DIR / "rows.parquet"
 F2025 = str(ROOT / "data" / "flights" / "2025_*.parquet")
 BUFFERS = (30, 60, 120)
@@ -40,7 +45,7 @@ def current() -> pd.DataFrame:
     path = R / "current.parquet"
     if not path.exists():
         t = time.time()
-        f = forecasts(ROWS, ft.OUT)
+        f = forecasts(ROWS, FEATS)
         c = pd.read_parquet(OUT_DIR / "clim_origin.parquet", columns=["flight_id", "lead_h", *PCOLS])
         c = c.rename(columns={k: f"c_{k}" for k in PCOLS})
         f = f.merge(c, on=["flight_id", "lead_h"], how="left")
@@ -83,6 +88,8 @@ def build_alternatives(cur: pd.DataFrame) -> None:
         climatology(rows, feats / "clim_origin.parquet", by="origin")
         ft.build(rows=rows, out=feats, clim_origin=feats / "clim_origin.parquet")
         print(f"alternative inputs: {time.time() - t0:.0f} s", flush=True)
+    if HIDDEN and not (feats / "d_raw.parquet").exists():
+        hide_alternatives(rows, feats)
     path = R / "alt_forecasts.parquet"
     if not path.exists():
         t0 = time.time()
@@ -93,6 +100,17 @@ def build_alternatives(cur: pd.DataFrame) -> None:
         f.merge(info, on=["flight_id", "lead_h"]).rename(columns={"flight_id": "alt", "lead_h": "alt_lead"}).drop(
             columns=["origin", "dest", "split"]).to_parquet(path, index=False)
         print(f"alternative forecasts: {time.time() - t0:.0f} s", flush=True)
+
+
+def hide_alternatives(rows, feats) -> None:
+    """Same treatment as the fit and the trips (0014). The original stays as d_raw."""
+    d = pd.read_parquet(feats / "d.parquet")
+    d.to_parquet(feats / "d_raw.parquet", index=False)
+    x = pd.read_parquet(feats / "a.parquet", columns=["lead_h", "local_hour", "carrier"])
+    r = pd.read_parquet(rows, columns=["split", "origin"])
+    h = hide_hindsight(d, r.split, x.lead_h, [x.carrier, x.local_hour, r.origin])
+    assert not (h.prior_turn_min < 0).any() and h.prior_turn_min[x.lead_h.to_numpy() < 24].notna().all()
+    h.to_parquet(feats / "d.parquet", index=False)
 
 
 def ft_label() -> str:

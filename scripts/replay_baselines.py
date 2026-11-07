@@ -5,17 +5,17 @@ Baselines, each deciding keep or change at the same forecast moments as murphy:
   thumb     the traveler's rule: the inbound aircraft's lateness outlasts its turn by more than the deadline
             allows, so take the next allowed flight. It has no forecast, so it checks no gain.
 Steps are saved and skipped when rerun. 2025 only.
-Usage: PYTHONPATH=. python scripts/replay_baselines.py
+Usage: PYTHONPATH=. python scripts/replay_baselines.py    add MURPHY_MODEL=final_clean for hidden inputs
 """
 import json
 import numpy as np, pandas as pd
 from murphy.forecast import gbm
 from murphy.forecast.climatology import OUT_DIR
 from murphy.forecast.score import PCOLS, day_ci
+from scripts.replay_cutoffs import FEATS, HIDDEN, R
 from murphy.recommend import MAX_EARLIER_H, MIN_MISS, inbound_too_late, made_it, p_make, should_change
 
 OUT = OUT_DIR / "alternatives"
-R = OUT / "replay"
 KEYS = ["flight_id", "lead_h"]
 BUFFERS = (30, 60, 120)
 NAME = "l2abl_a"
@@ -39,14 +39,17 @@ def load():
     land after this flight leaves. That overlap cannot be a plan, so it may be hindsight (0014)."""
     cols = [*KEYS, "flight_date", "outcome", "arr_delay_min", *PCOLS, *[f"c_{k}" for k in PCOLS]]
     cur = pd.read_parquet(R / "current.parquet", columns=cols)
-    X, r, _ = gbm.load_split("tune", "ad")
     d = ["prior_delay_so_far", "prior_turn_min", "prior_status"]
+    X, r, _ = gbm.load_split("tune", "ad")  # as recorded, for telling kinds of flight apart
+    cur = cur.merge(pd.concat([r[KEYS], X[d].add_prefix("raw_").reset_index(drop=True)], axis=1), on=KEYS, how="left")
+    X, r, _ = gbm.load_split("tune", "ad", features=FEATS)  # as the model and the rule of thumb see them
     cur = cur.merge(pd.concat([r[KEYS], X[d].reset_index(drop=True)], axis=1), on=KEYS, how="left")
-    cur["clean"] = ~(cur.prior_turn_min < 0)
+    cur["clean"] = ~(cur.raw_prior_turn_min < 0)
     sc, sa = schedule_forecasts()
     cur = cur.merge(sc, on=KEYS, how="left")
     X, r, _ = gbm.load_split("tune", "ad", rows=R / "alt_rows.parquet", features=R / "alt_features")
-    turn = pd.DataFrame({"alt": r.flight_id, "alt_lead": r.lead_h, "alt_clean": ~(X.prior_turn_min.to_numpy() < 0)})
+    raw = pd.read_parquet(R / "alt_features" / ("d_raw.parquet" if HIDDEN else "d.parquet"), columns=["prior_turn_min"]).prior_turn_min.to_numpy()
+    turn = pd.DataFrame({"alt": r.flight_id, "alt_lead": r.lead_h, "alt_clean": ~(raw < 0)})
     pairs = pd.read_parquet(R / "pairs.parquet").merge(pd.read_parquet(R / "alt_forecasts.parquet"), on=["alt", "alt_lead"], suffixes=("", "_a"))
     pairs = pairs.merge(sa, on=["alt", "alt_lead"], how="left").merge(turn, on=["alt", "alt_lead"], how="left")
     pairs["dep_rel_h"] = pairs.alt_lead - pairs.lead_h
@@ -86,7 +89,7 @@ def pick(t, a, order, ascending):
 def run(cur, pairs) -> None:
     rec, band = [], []
     for buf in BUFFERS:
-        for scope in ("all", "clean"):
+        for scope in ("all",) if HIDDEN else ("all", "clean"):
             keep = cur.clean.to_numpy() if scope == "clean" else np.ones(len(cur), bool)
             c = cur[keep].reset_index(drop=True)
             p = pairs[pairs.alt_clean] if scope == "clean" else pairs
@@ -129,7 +132,7 @@ def turn_table(cur, buf=60) -> None:
     """How forecasts and results vary with the scheduled turn, and a rule that ignores the turn."""
     miss = ~made_it(cur.arr_delay_min, cur.outcome, np.full(len(cur), buf))
     risk = 1 - p_make(cur[PCOLS].to_numpy(), np.full(len(cur), buf))
-    a = pd.DataFrame({"lead_h": cur.lead_h, "turn": cur.prior_turn_min, "status": cur.prior_status, "miss": miss, "risk": risk, "flag": risk >= MIN_MISS})
+    a = pd.DataFrame({"lead_h": cur.lead_h, "turn": cur.raw_prior_turn_min, "status": cur.raw_prior_status, "miss": miss, "risk": risk, "flag": risk >= MIN_MISS})
     known = a[a.turn.notna()].copy()
     known["bin"] = pd.cut(known.turn, [-1e9, -60, -15, -0.5, 14.5, 29.5, 44.5, 59.5, 119.5, 1e9],
                           labels=["<-60", "-60 to -16", "-15 to -1", "0-14", "15-29", "30-44", "45-59", "60-119", "120+"], right=False)
@@ -139,13 +142,13 @@ def turn_table(cur, buf=60) -> None:
     print(t.round(3).to_string())
     print(pd.DataFrame({"flagged": a.groupby("lead_h").flag.sum(), "flagged_overlap": a[a.turn < 0].groupby("lead_h").flag.sum(),
                         "overlap": a[a.turn < 0].groupby("lead_h").size()}).fillna(0).astype(int).to_string())
-    kind = np.select([cur.prior_turn_min.isna(), cur.prior_delay_so_far.isna(), cur.prior_turn_min < 0],
+    kind = np.select([cur.raw_prior_turn_min.isna(), cur.raw_prior_delay_so_far.isna(), cur.raw_prior_turn_min < 0],
                      ["no tail", "delay blank", "overlap"], "normal")
     k = a.assign(kind=kind, cancelled=(cur.outcome == "cancelled").to_numpy()).groupby(["lead_h", "kind"]).agg(
         forecasts=("miss", "size"), pred_miss=("risk", "mean"), true_miss=("miss", "mean"), cancelled=("cancelled", "mean"), flagged=("flag", "sum"))
     k.to_csv(R / "aircraft_kinds.csv")
     print(k.round(3).to_string())
-    naive = cur.prior_delay_so_far > buf
+    naive = cur.raw_prior_delay_so_far > buf
     print(f"ignoring the turn: {naive.sum():,} flags, true miss {miss[naive].mean():.3f}", flush=True)
 
 

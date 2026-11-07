@@ -193,3 +193,56 @@ def test_old_taf_is_blank(tmp_path, wx):
     q = wx_rows(tmp_path, "ATL", "ORD", "2024-01-12 03:00", "2024-01-12 05:00", "2024-01-12 07:00")
     t = ft.taf(con, q, wx, "origin", "sched_dep_utc", "taf_dep")
     assert t.taf_dep_has[0] == 0 and np.isnan(t.taf_dep_sknt[0])
+
+
+def _aircraft():
+    # rows 0-2 normal, 3 overlap, 4 no tail, 5 lead 24 (blank for every flight), 6 prior leg cancelled
+    return pd.DataFrame({"prior_turn_min": [60.0, 70, 80, -30, np.nan, np.nan, 50],
+                         "prior_status": [0.0, 1, 2, 0, np.nan, np.nan, 3],
+                         "prior_delay_so_far": [5.0, 6, 7, 0, np.nan, np.nan, np.nan]})
+
+
+def _hide(d, **kw):
+    from murphy.forecast.features import hide_hindsight
+    return hide_hindsight(d, ["tune"] * 7, kw.get("lead", [2, 2, 2, 2, 2, 24, 2]), [[9] * 7], **{k: v for k, v in kw.items() if k == "seed"})
+
+
+def test_hide_replaces_overlap_and_no_tail_with_a_whole_real_row():
+    d = _aircraft()
+    out = _hide(d)
+    real = set(map(tuple, d.iloc[[0, 1, 2, 6]].fillna(-1).to_numpy()))
+    for i in (3, 4):
+        assert tuple(out.iloc[i].fillna(-1)) in real
+    assert out.prior_turn_min.drop(5).notna().all() and not (out.prior_turn_min < 0).any()
+
+
+def test_hide_leaves_normal_rows_and_a_cancelled_prior_leg_alone():
+    d, out = _aircraft(), _hide(_aircraft())
+    pd.testing.assert_frame_equal(out.iloc[[0, 1, 2, 6]], d.iloc[[0, 1, 2, 6]])
+
+
+def test_hide_leaves_24h_blank():
+    assert _hide(_aircraft()).iloc[5].isna().all()
+
+
+def test_hide_is_repeatable():
+    pd.testing.assert_frame_equal(_hide(_aircraft(), seed=3), _hide(_aircraft(), seed=3))
+
+
+def test_hide_never_borrows_across_splits():
+    from murphy.forecast.features import hide_hindsight
+    d = pd.DataFrame({"prior_turn_min": [-5.0, 60, 999], "prior_status": [0.0, 1, 2], "prior_delay_so_far": [0.0, 1, 2]})
+    out = hide_hindsight(d, ["tune", "tune", "test"], [2, 2, 2], [[9, 9, 9]])
+    assert out.prior_turn_min[0] == 60
+
+
+def test_hide_falls_back_to_another_hour_when_the_hour_is_empty():
+    from murphy.forecast.features import hide_hindsight
+    d = pd.DataFrame({"prior_turn_min": [-5.0, 60], "prior_status": [0.0, 1], "prior_delay_so_far": [0.0, 1]})
+    assert hide_hindsight(d, ["tune", "tune"], [2, 2], [[3, 9]]).prior_turn_min[0] == 60
+
+
+def test_hide_prefers_the_closest_match():
+    from murphy.forecast.features import hide_hindsight
+    d = pd.DataFrame({"prior_turn_min": [-5.0, 60, 999], "prior_status": [0.0, 1, 2], "prior_delay_so_far": [0.0, 1, 2]})
+    assert hide_hindsight(d, ["tune"] * 3, [2, 2, 2], [["AA", "AA", "UA"]]).prior_turn_min[0] == 60

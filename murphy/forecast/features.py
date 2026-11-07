@@ -188,6 +188,34 @@ def aircraft(con, rows, flights) -> pd.DataFrame:
     return df.set_index("rid").reindex(pd.RangeIndex(n, name="rid")).reset_index()
 
 
+def hide_hindsight(d: pd.DataFrame, split, lead_h, match: list, seed: int = 0) -> pd.DataFrame:
+    """Hide aircraft inputs a traveler could not have seen (0014). BTS names the aircraft that
+    flew, so a previous leg overlapping this flight may show a swap, and no tail almost always
+    means cancelled. Blanks would carry the same signal, so such a row takes group D whole from
+    a random other flight in the same split and lead hour, matching on `match` and dropping its
+    last columns until a flight is found. Rows at 24 h or more have no aircraft inputs for any
+    flight and stay blank."""
+    cols = ["prior_turn_min", "prior_status", "prior_delay_so_far"]
+    lead = np.asarray(lead_h, dtype=float)
+    hide = (lead < 24) & (d.prior_turn_min.isna() | (d.prior_turn_min < 0)).to_numpy()
+    donor = (lead < 24) & ~hide
+    cell = pd.DataFrame({"s": np.asarray(split), "l": np.floor(lead)})
+    for k, m in enumerate(match):
+        cell[f"m{k}"] = np.asarray(m)
+    rng = np.random.default_rng(seed)
+    out, values = d.copy(), d[cols].to_numpy()
+    new, left = values.copy(), hide.copy()
+    for depth in range(len(match), -1, -1):
+        if left.any():
+            for _, i in cell.groupby(list(cell.columns[:2 + depth]), dropna=False).indices.items():
+                take, give = i[left[i]], i[donor[i]]
+                if len(take) and len(give):
+                    new[take] = values[rng.choice(give, len(take))]
+                    left[take] = False
+    out[cols] = new
+    return out
+
+
 def _wx_flags(c: str) -> str:
     return (f"CASE WHEN regexp_matches({c}, 'TS') THEN 1 ELSE 0 END AS ts, "
             f"CASE WHEN regexp_matches({c}, 'SN|PL|FZ|GR|IC') THEN 1 ELSE 0 END AS snow_ice, "
