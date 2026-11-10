@@ -10,7 +10,7 @@ evidence, its source and its uncertainty.
 CS 5542 Big Data Analytics & Applications, Fall 2026 · Hallee Pham (solo project)
 
 [Poster (PDF)](poster/murphy-poster.pdf) · [Poster on Google Drive](https://drive.google.com/file/d/1nC_FDjkYL0IisXhSdKB1tmfSJ8-ja22d/view?usp=sharing) ·
-[Demo video](https://drive.google.com/file/d/1bOkDsskHgpEqFmFvzVy6gJgikR1fTWhx/view?usp=drive_link) · [Results](results/RESULTS.md)
+[Demo video](https://drive.google.com/file/d/1xPvdtUMbMgyqkTSrnCjq8usiiBtpqagA/view?usp=sharing) · [Results](results/RESULTS.md)
 
 ![A trip in Murphy: the chance of making the deadline, the advice, and how the chance changes with the deadline](docs/images/trip.png)
 
@@ -111,3 +111,8 @@ results/         result files and RESULTS.md
 docs/            data, reproduction steps, screenshots
 poster/          the research poster
 ```
+
+## Acknowledgments
+
+Developed with help from Claude (Anthropic), used through Claude Code as a coding
+assistant. I reviewed and verified all design decisions, code and results.
