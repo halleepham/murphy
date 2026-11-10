@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Murphy</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar"><div class="inner">
+  <a class="brand" href="/">Murphy</a>
+  <nav><a href="/about">About</a></nav>
+</div></header>
+
+<main>
+ <div class="hero">
+  <section>
+    <p class="eyebrow">Flight risk, with the evidence</p>
+    <h1>Will your flight get you there in time?</h1>
+    <p class="lead">Murphy forecasts the chance your flight lands by your deadline, says whether to keep it, and shows better flights with the evidence behind each answer.</p>
+    <a class="btn" href="/about">How Murphy works</a>
+  </section>
+
+  <section class="card">
+    <h2 style="font-size:1.1rem;margin-bottom:14px">Check a flight</h2>
+    <form id="find">
+      <div class="form-grid">
+        <label class="field">Date <input id="date" type="date" min="2025-01-01" max="2025-12-31" required></label>
+        <label class="field">Airline <input id="carrier" maxlength="2" placeholder="DL" required></label>
+        <label class="field">Flight <input id="number" type="number" min="1" placeholder="1222" required></label>
+      </div>
+      <button class="btn primary" style="width:100%">Check flight</button>
+    </form>
+    <div id="found" style="margin-top:12px"></div>
+    <p class="muted small" style="margin:18px 0 0">Or try an example</p>
+    <div class="examples" id="examples"></div>
+    <p class="muted small" style="margin-top:14px">A replay of 2025 flights.</p>
+  </section>
+ </div>
+
+ <section class="steps" aria-label="How it works">
+  <div class="step"><span class="num">01</span><h3>Enter your flight</h3><p>The date, airline and flight number. Pick how late you can afford to arrive.</p></div>
+  <div class="step"><span class="num">02</span><h3>Get the chance and the advice</h3><p>The chance you land by your deadline, whether to keep the flight, and better flights if there are any.</p></div>
+  <div class="step"><span class="num">03</span><h3>Check the evidence</h3><p>Every answer shows where it came from: the forecast, the weather, similar past days and the airline's rules.</p></div>
+ </section>
+</main>
+<footer class="footer"><div class="inner"><span>Murphy · by Hallee Pham</span><span>A replay of 2025 US flights</span><a href="/about">About and limits</a></div></footer>
+
+<script src="/static/common.js"></script>
+<script>
+const go = id => { location.href = "/trip?flight_id=" + encodeURIComponent(id); };
+
+$("find").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = new URLSearchParams({ date: $("date").value, carrier: $("carrier").value, number: $("number").value });
+  const box = $("found");
+  try {
+    const rows = await get("/api/flights?" + q);
+    if (!rows.length) { box.replaceChildren(el("p", "No forecast for this flight. Forecasts cover sampled 2025 flights only.", "error small")); return; }
+    if (rows.length === 1) { go(rows[0].flight_id); return; }
+    // One flight number can fly several legs in a day: let the traveler pick.
+    box.replaceChildren(el("p", "This flight number flies more than one leg that day:", "muted small"),
+      ...rows.map(r => { const b = el("button", `${r.origin} → ${r.dest}, ${time(r.crs_dep_local)}`, "chip"); b.type = "button"; b.onclick = () => go(r.flight_id); return b; }));
+  } catch (err) { box.replaceChildren(el("p", err.message, "error small")); }
+});
+
+// Examples fill the form; the traveler still presses the button.
+get("/api/examples").then(rows => $("examples").replaceChildren(...rows.map(r => {
+  const b = el("button", `${r.flight} · ${r.origin}→${r.dest} · ${r.date}`, "chip");
+  if (r.askable) { const t = el("span", "Q&A", "tag"); t.title = "You can ask questions about flights from 4 to 12 January 2025."; b.append(t); }
+  b.type = "button";
+  b.onclick = () => {
+    const [carrier, number] = r.flight.split(" ");
+    $("date").value = r.date; $("carrier").value = carrier; $("number").value = number;
+    $("examples").querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === b));
+  };
+  return b;
+}))).catch(() => {});
+</script>
+</body>
+</html>

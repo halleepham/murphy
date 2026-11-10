@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Murphy · your flight</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar"><div class="inner">
+  <a class="brand" href="/">Murphy</a>
+  <nav><a href="/">New search</a><a href="/about">About</a></nav>
+</div></header>
+
+<main class="layout">
+ <div class="main">
+  <section class="card">
+    <div class="flight-head" id="head"><span class="loading">Loading your flight...</span></div>
+    <div class="summary" id="summary" hidden>
+      <div><div class="chance" id="chance"></div><div class="muted small">chance of landing by your deadline</div></div>
+      <div><span class="verdict" id="verdict"></span><p class="muted small" id="track" style="margin:8px 0 0"></p></div>
+      <div class="controls">
+        <label class="field">Forecast made
+          <select id="lead"><option value="24">24 h before</option><option value="6">6 h before</option><option value="2" selected>2 h before</option></select></label>
+        <label class="field">Deadline after arrival
+          <select id="deadline"></select></label>
+      </div>
+    </div>
+    <div class="whatif" id="whatif" hidden>
+      <div class="whatif-head"><h3>What if your deadline changes?</h3><span class="muted small">Click or drag on the chart to set your deadline.</span></div>
+      <div class="legend" id="legend"></div>
+      <div class="chart-box"><canvas id="chart" aria-label="Chance of making it by deadline"></canvas></div>
+      <p class="muted small" id="whatif-note"></p>
+    </div>
+    <details id="where" hidden style="margin-top:12px"><summary class="small">Where this forecast came from</summary><p class="muted small" id="where-text"></p></details>
+  </section>
+
+  <nav class="tabs" id="tabs" hidden></nav>
+  <section class="panel" id="panel"></section>
+ </div>
+
+ <aside class="assistant card" id="assistant" hidden aria-label="Ask Murphy">
+  <div class="assistant-head"><h2>Ask Murphy</h2><button type="button" class="close" id="ask-close" aria-label="Close">×</button></div>
+  <p class="muted small">Answers use only Murphy's data about this trip. If an answer states a number that isn't in that data, it's flagged.</p>
+  <div id="chat" class="chat"></div>
+  <div id="asks" class="examples"></div>
+ </aside>
+</main>
+<button type="button" class="fab" id="ask-open" aria-label="Ask Murphy" aria-expanded="false" aria-controls="assistant">
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+</button>
+
+<footer class="footer"><div class="inner"><span>Murphy · by Hallee Pham</span><span>A replay of 2025 US flights</span><a href="/about">About and limits</a></div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/map.js"></script>
+<script>
+const WORDS = {
+  keep: "Keep your flight", too_uncertain: "Too uncertain to say", consider_changing: "Consider changing",
+  at_risk_no_better_flight: "High risk, no clearly better flight", cancelled: "Already known to be cancelled",
+};
+const QUESTIONS = [  // murphy.graphrag.QUESTIONS
+  ["chance", "How likely is this flight to make me late?"], ["better", "Is there a better flight?"],
+  ["why", "Why is this flight at risk?"], ["region", "How are the regions doing today?"],
+];
+const STATUS = {
+  no_evidence: "The knowledge graph holds nothing for this question.",
+  paused: "Explanations are paused: the language model's free daily limit is reached. The evidence below comes straight from the graph.",
+};
+const SITUATIONS = [  // murphy.policies.SITUATIONS
+  ["cancelled", "My flight is cancelled"], ["delay_refund", "Long delay: I no longer want to go"],
+  ["delay_care", "Long delay: hotel or meals"], ["schedule_change", "The airline changed my flight time"],
+  ["change_myself", "I want to switch flights myself"], ["missed_connection", "I missed my connection"],
+  ["tarmac", "Stuck on the plane on the ground"], ["bumped", "Bumped from an oversold flight"],
+];
+const TABS = [["options", "Options"], ["map", "Map"], ["pastdays", "Similar days"], ["rules", "Rules"]];
+
+const flightId = new URLSearchParams(location.search).get("flight_id");
+const settings = { max_earlier_h: 2, sort: "chance" };
+let trip = null, tab = TABS.some(([k]) => "#" + k === location.hash) ? location.hash.slice(1) : "options";  // #map opens a tab directly
+
+const params = extra => new URLSearchParams({ flight_id: flightId, lead_h: $("lead").value, deadline_min: $("deadline").value, ...extra });
+
+async function load() {
+  try { trip = await get("/api/trip?" + params({ max_earlier_h: settings.max_earlier_h, sort: settings.sort })); }
+  catch (e) { $("head").replaceChildren(el("p", e.message, "error")); $("summary").hidden = $("tabs").hidden = true; $("panel").replaceChildren(); return; }
+  renderHead(); renderChart(); renderTabs(); openTab(tab); renderAsk();
+}
+
+function renderHead() {
+  const f = trip.flight, a = trip.answer, t = trip.uncertainty.track_record;
+  $("head").replaceChildren(el("span", f.flight, "code"), el("span", `${f.origin} → ${f.dest}`, "route"),
+    el("span", `${f.date} · departs ${time(f.departs_local)} · arrives ${time(f.arrives_local)} local`, "muted"));
+  const change = el("a", "Check another flight", "change small"); change.href = "/"; $("head").append(change);
+  $("chance").textContent = pct(a.chance);
+  $("verdict").textContent = WORDS[a.verdict]; $("verdict").className = "verdict " + a.verdict;
+  $("track").textContent = `Past accuracy: for flights like this, Murphy expected ${pct(t.predicted_miss)} to miss; ${pct(t.true_miss)} did.`;
+  $("summary").hidden = false;
+  const p = trip.provenance;
+  $("where-text").textContent = `Model ${p.model}, forecast as of ${p.forecast_as_of_utc} UTC (${p.lead_h} h before departure). ${p.data}. Flight record ${f.flight_id}. Past accuracy from ${t.forecasts.toLocaleString("en-US")} forecasts in the same risk band, 2025. Limits are on the About page.`;
+  $("where").hidden = false;
+}
+
+// --- Deadline what-if: every value comes from the server's p_make; the page only draws. --
+let chart = null;
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+const marker = {  // the traveler's deadline, and the range past what was checked
+  id: "marker",
+  beforeDatasetsDraw(c) {
+    const { ctx, chartArea: a, scales: { x } } = c, cut = x.getPixelForValue(trip.curve.checked_to);
+    ctx.save(); ctx.fillStyle = css("--line"); ctx.globalAlpha = .45; ctx.fillRect(cut, a.top, a.right - cut, a.bottom - a.top);
+    ctx.globalAlpha = 1; ctx.fillStyle = css("--muted"); ctx.font = "12px " + css("--font"); ctx.textAlign = "center";
+    ctx.fillText("not tested", (cut + a.right) / 2, a.bottom - 8); ctx.restore();
+  },
+  afterDatasetsDraw(c) {
+    const { ctx, chartArea: a, scales: { x } } = c, px = x.getPixelForValue(c.$deadline);
+    ctx.save(); ctx.strokeStyle = css("--text"); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+    ctx.fillStyle = css("--surface"); ctx.beginPath(); ctx.arc(px, a.top, 6, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = css("--text"); ctx.font = "600 12px " + css("--font"); ctx.textAlign = px > a.right - 60 ? "right" : "left";
+    ctx.fillText(`your deadline: ${c.$deadline} min`, px + (ctx.textAlign === "left" ? 6 : -6), a.bottom - 8); ctx.restore();
+  },
+};
+
+function renderChart() {
+  const c = trip.curve, pts = ys => c.deadline_min.map((d, i) => ({ x: d, y: 100 * ys[i] }));
+  const sets = [{ label: "This flight", data: pts(c.chance), borderColor: css("--accent"), backgroundColor: css("--accent"), borderWidth: 3 }];
+  if (c.best_alt) sets.push({ label: `Best alternative (${c.best_alt.flight})`, data: pts(c.best_alt.chance), borderColor: css("--good"), backgroundColor: css("--good"), borderWidth: 2 });
+  if (c.typical.length) sets.push({ label: "Typical 2025 flight", data: pts(c.typical), borderColor: css("--muted"), backgroundColor: css("--muted"), borderWidth: 2, borderDash: [6, 4] });
+  sets.forEach(s => Object.assign(s, { stepped: "before", pointRadius: 0, pointHoverRadius: 4, fill: false }));
+  const deadline = +$("deadline").value;
+  if (chart) { chart.data.datasets = sets; chart.$deadline = deadline; chart.update("none"); }
+  else {
+    Chart.defaults.font.family = css("--font"); Chart.defaults.color = css("--muted");
+    chart = new Chart($("chart"), {
+      type: "line", data: { datasets: sets }, plugins: [marker],
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: "index", axis: "x", intersect: false },
+        scales: {
+          x: { type: "linear", min: 0, max: 180, ticks: { stepSize: 30, callback: v => `+${v}` }, grid: { color: css("--line") },
+               title: { display: true, text: "Minutes after scheduled arrival" } },
+          y: { min: 0, max: 100, ticks: { stepSize: 25, callback: v => v + "%" }, grid: { color: css("--line") },
+               title: { display: true, text: "Chance of making it" } },
+        },
+        plugins: {
+          legend: { display: false },  // drawn by the page (renderLegend) so the dashes show
+          tooltip: { callbacks: { title: i => `Deadline +${i[0].parsed.x} min` + (i[0].parsed.x > c.checked_to ? " (not tested)" : ""),
+                                  label: i => `${i.dataset.label}: ${i.parsed.y.toFixed(0)}%` } },
+        },
+      },
+    });
+    chart.$deadline = deadline;
+    // Click or drag to move the deadline; the page reloads the advice when the pointer is released.
+    let dragging = false;
+    const at = e => {
+      const v = chart.scales.x.getValueForPixel(e.clientX - canvas.getBoundingClientRect().left);
+      return Math.max(0, Math.min(c.checked_to, Math.round(v / 15) * 15));
+    };
+    const canvas = $("chart");
+    canvas.addEventListener("pointerdown", e => { dragging = true; canvas.setPointerCapture(e.pointerId); chart.$deadline = at(e); chart.draw(); });
+    canvas.addEventListener("pointermove", e => { if (dragging) { chart.$deadline = at(e); chart.draw(); } });
+    canvas.addEventListener("pointerup", () => {
+      dragging = false;
+      if (String(chart.$deadline) !== $("deadline").value) { $("deadline").value = chart.$deadline; load(); }
+    });
+  }
+  renderLegend(sets);
+  const i = c.deadline_min.indexOf(deadline), alt = c.best_alt ? `, the best alternative ${pct(c.best_alt.chance[i])}` : "";
+  $("whatif-note").textContent = `At +${deadline} min: this flight ${pct(c.chance[i])}${alt}, a typical 2025 flight forecast at the same time before departure ${pct(c.typical[i])}. Murphy hasn't tested its advice for deadlines more than ${c.checked_to} minutes after arrival, so the deadline stops there.`;
+  $("whatif").hidden = false;
+}
+
+// The key, one short line per series as drawn, plus the deadline you drag.
+function renderLegend(sets) {
+  const item = (label, color, width, dash, handle) => {
+    const s = el("span", null, "key"), ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("width", handle ? 14 : 30); svg.setAttribute("height", 14);
+    const l = document.createElementNS(ns, "line");
+    Object.entries(handle ? { x1: 7, x2: 7, y1: 4, y2: 14 } : { x1: 0, x2: 30, y1: 7, y2: 7 }).forEach(([k, v]) => l.setAttribute(k, v));
+    l.setAttribute("stroke", color); l.setAttribute("stroke-width", width); if (dash) l.setAttribute("stroke-dasharray", dash.join(" "));
+    svg.append(l);
+    if (handle) { const c = document.createElementNS(ns, "circle"); [["cx", 7], ["cy", 5], ["r", 4], ["fill", css("--surface")], ["stroke", color], ["stroke-width", 1.5]].forEach(([k, v]) => c.setAttribute(k, v)); svg.append(c); }
+    s.append(svg, label); return s;
+  };
+  $("legend").replaceChildren(...sets.map(s => item(s.label, s.borderColor, s.borderWidth, s.borderDash)),
+    item("Your deadline (drag to move)", css("--text"), 2, null, true));
+}
+
+function renderTabs() {
+  $("tabs").replaceChildren(...TABS.map(([key, label]) => {
+    const b = el("button", label); b.type = "button"; b.dataset.key = key; b.onclick = () => openTab(key); return b;
+  }));
+  $("tabs").hidden = false;
+}
+
+function openTab(key) {
+  tab = key;
+  $("tabs").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.key === key));
+  ({ options, map, pastdays, rules })[key]($("panel"));
+}
+
+// --- Options: alternatives, with the traveler's limits ---------------------------------------
+function options(box) {
+  const a = trip.answer, alts = trip.alternatives, out = [];
+  if (a.verdict === "keep") { box.replaceChildren(card("Other flights", el("p", "Your flight looks likely to make it. No change suggested."))); return; }
+  const earlier = el("input"); Object.assign(earlier, { type: "number", min: 0, max: 24, step: 1, value: settings.max_earlier_h });
+  earlier.onchange = () => { settings.max_earlier_h = earlier.value; load(); };
+  const sort = el("select"); [["chance", "Chance of making it"], ["price", "Estimated price"]].forEach(([v, t]) => { const o = el("option", t); o.value = v; sort.append(o); });
+  sort.value = settings.sort; sort.onchange = () => { settings.sort = sort.value; load(); };
+  const l1 = el("label", "Could leave up to (h earlier)", "field"), l2 = el("label", "Sort by", "field");
+  l1.append(earlier); l2.append(sort);
+  const ctl = el("div", null, "controls"); ctl.append(l1, l2); out.push(ctl);
+  if (!alts.length) { out.push(el("p", "No flight leaves within your limits and arrives by the deadline.", "muted")); box.replaceChildren(card("Other flights", ...out)); return; }
+  const wrap = el("div", null, "scroll"), t = el("table", null, "opts"), head = el("tr");
+  ["", "Flight", "Departs", "Arrives", "Chance", "Compared with yours", "New ticket (est.)"].forEach(h => head.append(el("th", h)));
+  t.append(head);
+  alts.forEach(x => {
+    const tr = el("tr", null, x.best ? "best" : "");
+    [x.best ? "Best" : "", x.flight, `${x.date} ${time(x.departs_local)}`, time(x.arrives_local), pct(x.chance),
+     (x.gain >= 0 ? "+" : "") + (100 * x.gain).toFixed(0) + " points",
+     x.cost.fare == null ? "No estimate" : "$" + x.cost.fare.toFixed(2) + (x.same_airline ? " *" : "")].forEach(c => tr.append(el("td", c)));
+    t.append(tr);
+  });
+  wrap.append(t); out.push(wrap);
+  const notes = ["Price: the median fare paid on this route and airline (or route, if the airline has too little data), from " + alts[0].cost.source + ". One airline shows one figure, so price sorting compares airlines, not times."];
+  if (alts.some(x => x.same_airline)) notes.push("* Same airline: this may cost only a fare difference, which the data does not show.");
+  out.push(fold("About the prices", ...notes));
+  // The timeline sits under the table: the same flights, drawn by scheduled time. Times are local
+  // at the origin, whose time zone comes with the map's data (cached, so the Map tab opens at once).
+  const timeline = el("div"), lead = $("lead").value;
+  box.replaceChildren(card("Other flights", ...out), card(null, timeline));
+  (mapCache[lead] ||= get("/api/map?" + new URLSearchParams({ flight_id: flightId, lead_h: lead })))
+    .then(d => renderTimeline(timeline, d.route.origin?.tz), () => { delete mapCache[lead]; renderTimeline(timeline, null); });
+}
+
+// --- Similar past days: all departures that day, not this flight -----------------------
+async function pastdays(box) {
+  const origin = trip.flight.origin;
+  box.replaceChildren(card(null, el("p", "Looking for similar past days...", "loading")));
+  let d;
+  try { d = await get("/api/pastdays?" + new URLSearchParams({ flight_id: flightId, lead_h: $("lead").value })); }
+  catch (e) { box.replaceChildren(card(null, el("p", e.message, "error"))); return; }
+  const out = [], a = d.answer, u = d.uncertainty;
+  if (d.status === "no_weather") out.push(el("p", `No weather data for ${origin}. Similar past days cover the 30 busiest airports.`, "muted"));
+  else if (a) {
+    out.push(el("p", `On the ${a.days} past days at ${origin} whose forecast looked most like today's, ${pct(a.late_share)} of departures were late or cancelled on average (from ${pct(a.range[0])} to ${pct(a.range[1])} on those days).`));
+    out.push(el("p", "This counts every departure from the airport that day, not your flight.", "muted small"));
+  } else out.push(el("p", `${u.reason} Not enough evidence, so no percent is shown.`, "muted"));
+  if (d.query) {
+    // The day's sentence opens with "ATL, a Friday in January."; the date column already says that.
+    const weather = text => text.replace(/^[A-Z]{3}, an? \w+ in \w+\.\s*/, "");
+    const wrap = el("div", null, "scroll"), t = el("table", null, "days"), hr = el("tr");
+    ["Date", "Late or cancelled", "Departures", "Weather forecast that day"].forEach(h => hr.append(el("th", h)));
+    t.append(hr);
+    d.days.forEach(x => {
+      const tr = el("tr");
+      tr.append(el("td", x.date), el("td", pct(x.late_share)), el("td", `${x.n_late} of ${x.n_dep}`), el("td", weather(x.text), "wrap"));
+      t.append(tr);
+    });
+    wrap.append(t);
+    out.push(fold(`See the ${d.days.length} days`, `Today's forecast: ${weather(d.query.text)} Most similar days first.`, wrap));
+    out.push(fold("How to read this", "Murphy looks for earlier days at the airport whose weather forecast was closest to today's: visibility, cloud height, wind, and rain, snow or storms, with the time of year. Then it counts how those days went. It describes the airport, not your flight."));
+    out.push(fold("Technical details", `${d.provenance.method}. ${d.provenance.corpus}. Outcome: ${d.provenance.outcome}. Weather: ${d.provenance.weather}, product ${d.query.taf_product_id}.`,
+      `Distance of each day (smaller is closer): ${d.days.map(x => `${x.date} ${x.distance.toFixed(2)}`).join(", ")}. Mean ${u.mean_distance == null ? "none" : u.mean_distance.toFixed(2)}; above ${u.thin_above} counts as thin.`));
+  }
+  if (tab === "pastdays") box.replaceChildren(card(`Similar past days at ${origin}`, ...out));
+}
+
+// --- Rules: quoted as written, no LLM -----------------------------------------------
+function rules(box) {
+  const pick = el("select"); SITUATIONS.forEach(([k, t]) => { const o = el("option", t); o.value = k; pick.append(o); });
+  pick.value = trip.policy_situation;
+  const label = el("label", "Situation", "field"); label.append(pick); label.style.maxWidth = "360px";
+  const result = el("div");
+  pick.onchange = () => quote(pick.value, result);
+  box.replaceChildren(card("What the rules say", label, result));
+  quote(pick.value, result);
+}
+
+async function quote(key, box) {
+  box.replaceChildren(el("p", "Looking in the rules...", "loading"));
+  let d;
+  try { d = await get("/api/policies?" + new URLSearchParams({ flight_id: flightId, situation: key })); }
+  catch (e) { box.replaceChildren(el("p", e.message, "error")); return; }
+  const out = [];
+  if (d.note) out.push(el("p", d.note, "muted small"));
+  const ul = el("ul", null, "evidence");
+  d.passages.forEach(x => {
+    const li = el("li"), a = el("a", `${x.section} (part ${x.part})`);
+    a.href = x.url; a.target = "_blank"; a.rel = "noopener";
+    li.append(a, el("blockquote", x.text), fold("Source details", `${x.id} · collected ${x.collected} · hash ${x.sha256} · similarity ${x.score.toFixed(3)}`));
+    ul.append(li);
+  });
+  out.push(ul);
+  out.push(fold("How to read this", "These are the passages from your airline's contract and the federal rules that match the situation, quoted as written. The airline's current terms may differ."));
+  out.push(fold("Technical details", `Searched: "${d.answer.question}". ${d.provenance.method}.`, `${d.uncertainty.retrieval} ${d.uncertainty.terms}`));
+  box.replaceChildren(...out);
+}
+
+// --- Evidence as tables: one per graph query, a column per field, the [E1] tags kept ----------
+const EV_TITLES = { flight: "Your flight", alternatives: "Alternatives", why: "Weather at the origin and linked airports",
+  taf: "Forecast at the origin (TAF)", community_day: "Regions today" };
+const EV_LABELS = { flight: "Flight", marketed_by: "Sold by", operated_by: "Flown by", origin: "From", dest: "To",
+  dep_local: "Departs (local)", arr_local: "Arrives (local)", forecasts: "Forecasts", alternative: "Alternative", carrier: "Airline",
+  arr_ahead_min: "Arrives earlier (min)", alt_p_miss: "Its chance of missing", trip_p_miss: "Yours", as_of: "Forecast made (UTC)",
+  community: "Region", community_busiest: "Region's busiest", airport: "Airport", co_disruption_weight: "Link strength",
+  gcn_late_share_next3h: "Expected late, next 3 h", metar_id: "Report", metar_known_at: "Known (UTC)", metar: "Report as written",
+  temp_f: "Temp (°F)", wind_kt: "Wind (kt)", gust_kt: "Gusts (kt)", visibility_mi: "Visibility (mi)", weather_codes: "Weather codes",
+  taf_id: "Forecast id", known_at: "Known (UTC)", raw: "Forecast as written", busiest: "Busiest airports", flights: "Flights",
+  mean_p_miss: "Average chance of missing", flights_p_miss_50: "Flights at 50% or more" };
+const LONG = new Set(["metar", "raw"]);
+// Source ids and times go in a tooltip on the [E] tag: still traceable, out of the way.
+const EV_TRACE = ["metar", "metar_id", "metar_known_at", "taf_id", "known_at"];
+const EV_ORDER = ["airport", "co_disruption_weight", "gcn_late_share_next3h", "temp_f", "wind_kt", "gust_kt", "visibility_mi", "weather_codes"];
+const evRank = k => { const i = EV_ORDER.indexOf(k); return LONG.has(k) ? 99 : i < 0 ? 50 : i; };
+const evLabel = k => EV_LABELS[k] || k.replace(/_/g, " ");
+const evCell = v => v == null || v === "" ? "—" : Array.isArray(v)
+  ? v.map(x => typeof x === "object" ? (x.lead_h != null && x.p_miss != null ? `${x.lead_h} h before: ${x.p_miss}` : Object.entries(x).map(([k, y]) => `${evLabel(k)} ${y}`).join(", ")) : x).join("; ")
+  : String(v);
+
+function evidenceTables(ev, glossary) {
+  const groups = {};
+  ev.forEach(r => (groups[r.query || "evidence"] ||= []).push(r));
+  return Object.entries(groups).map(([q, rows]) => {
+    let cols = [...new Set(rows.flatMap(Object.keys))].filter(k => k !== "tag" && k !== "query" && !EV_TRACE.includes(k) && rows.some(r => r[k] != null && r[k] !== ""));
+    const same = rows.length > 1 ? cols.filter(k => rows.every(r => JSON.stringify(r[k]) === JSON.stringify(rows[0][k]))) : [];
+    cols = cols.filter(k => !same.includes(k)).sort((a, b) => evRank(a) - evRank(b));
+    const tag = r => { const td = el("td", r.tag); const t = EV_TRACE.filter(k => r[k]).map(k => `${evLabel(k)}: ${r[k]}`).join("\n");
+      if (t) { td.title = t; td.className = "traced"; } return td; };
+    const head = k => { const th = el("th", evLabel(k)); if (glossary[k]) th.title = glossary[k]; return th; };
+    const cell = (k, v) => el("td", evCell(v), LONG.has(k) ? "long" : "");
+    const box = el("div", null, "ev-group"), wrap = el("div", null, "scroll");
+    box.append(el("h4", EV_TITLES[q] || q));
+    if (same.length) box.append(el("p", same.map(k => `${evLabel(k)}: ${evCell(rows[0][k])}`).join(" · "), "muted small"));
+    let t;
+    if (rows.length === 1) {  // one row reads better turned on its side
+      t = el("table", null, "ev kv");
+      const tr = el("tr"); tr.append(el("th", "Evidence"), tag(rows[0])); t.append(tr);
+      cols.forEach(k => { const tr = el("tr"); tr.append(head(k), cell(k, rows[0][k])); t.append(tr); });
+    } else {
+      t = el("table", null, "ev");
+      const tr = el("tr"); tr.append(el("th", "Evidence"), ...cols.map(head)); t.append(tr);
+      rows.forEach(r => { const tr = el("tr"); tr.append(tag(r), ...cols.map(k => cell(k, r[k]))); t.append(tr); });
+    }
+    wrap.append(t); box.append(wrap);
+    return box;
+  });
+}
+
+// --- Ask sidebar: GraphRAG, 60-minute deadline only. Stays beside every tab. -----------
+// The conversation is cleared whenever the trip reloads, so an answer never sits beside
+// settings it was not made for.
+function renderAsk() {
+  $("chat").replaceChildren();
+  if (!trip.askable) { $("asks").replaceChildren(el("p", "Questions cover flights from 4 to 12 January 2025 only.", "muted small")); return; }
+  if ($("deadline").value !== "60") { $("asks").replaceChildren(el("p", "Questions use a 60-minute deadline. Set the deadline to 60 min to ask.", "muted small")); return; }
+  $("asks").replaceChildren(...QUESTIONS.map(([key, text]) => {
+    const b = el("button", text, "chip"); b.type = "button"; b.onclick = () => ask(key, text); return b;
+  }));
+}
+
+async function ask(key, text) {
+  const box = el("div", null, "msg bot");
+  $("chat").append(el("div", text, "msg you"), box);
+  box.append(el("p", "Looking in the knowledge graph...", "muted small"));
+  box.scrollIntoView({ block: "nearest" });
+  let d;
+  try { d = await get("/api/ask?" + params({ question: key, max_earlier_h: settings.max_earlier_h })); }
+  catch (e) { box.replaceChildren(el("p", e.message, "error")); return; }
+  const out = [el("p", d.explanation || STATUS[d.status])];
+  if (d.checks && d.checks.invented.length) out.push(el("p", "Check: these numbers are not in the evidence: " + d.checks.invented.join(", "), "error small"));
+  if (d.checks && d.checks.bad_tags.length) out.push(el("p", "Check: it cites evidence that does not exist: " + d.checks.bad_tags.join(", "), "error small"));
+  if (d.evidence.length) {
+    const det = el("details");
+    det.append(el("summary", `Evidence (${d.evidence.length} rows)`, "small"), ...evidenceTables(d.evidence, d.glossary || {}));
+    det.append(fold("Technical details", `From queries ${d.provenance.queries.join(", ")} on ${d.provenance.graph}. Explained by ${d.provenance.llm}, which computes no number.${d.provenance.neighbor_order ? " Neighbors ordered by " + d.provenance.neighbor_order + "." : ""}`));
+    out.push(det);
+  }
+  if (d.status === "answered") out.push(feedbackRow(key));
+  box.replaceChildren(...out);
+}
+
+// --- Human feedback: confirm an answer, or say what is wrong and get one checked correction.
+async function sendFeedback(body) {
+  const r = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ flight_id: flightId, lead_h: +$("lead").value, deadline_min: +$("deadline").value, max_earlier_h: +settings.max_earlier_h, ...body }) });
+  const d = await r.json();
+  if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "Request failed");
+  return d;
+}
+
+function feedbackRow(key) {
+  const row = el("div", null, "feedback");
+  const yes = el("button", "Looks right", "chip"), no = el("button", "Something's wrong", "chip");
+  yes.type = no.type = "button";
+  yes.onclick = async () => {
+    try { await sendFeedback({ question: key, verdict: "right" }); row.replaceChildren(el("p", "Thanks. Saved as checked by you.", "muted small")); }
+    catch (e) { row.append(el("p", e.message, "error small")); }
+  };
+  no.onclick = () => {
+    const note = el("textarea"); Object.assign(note, { rows: 2, maxLength: 300, placeholder: "What looks wrong? For example: the wind is lower than that." });
+    const send = el("button", "Ask Murphy to check", "btn small"); send.type = "button";
+    send.onclick = async () => {
+      if (!note.value.trim()) { note.focus(); return; }
+      send.disabled = true; send.textContent = "Checking against the evidence...";
+      let d;
+      try { d = await sendFeedback({ question: key, verdict: "wrong", note: note.value }); }
+      catch (e) { send.disabled = false; send.textContent = "Ask Murphy to check"; row.append(el("p", e.message, "error small")); return; }
+      const msg = { refined: null, paused: STATUS.paused, limit: "Today's corrections are used up. Your note was saved.",
+                    no_first_answer: "There is no answer to correct yet." }[d.status];
+      const out = [el("p", `You said: "${d.note}"`, "muted small")];
+      if (d.explanation) {
+        out.push(el("p", null, "refined"));
+        out.at(-1).append(el("strong", "Checked again: "), d.explanation);
+        if (d.checks.invented.length) out.push(el("p", "Check: these numbers are not in the evidence: " + d.checks.invented.join(", "), "error small"));
+        if (d.checks.bad_tags.length) out.push(el("p", "Check: it cites evidence that does not exist: " + d.checks.bad_tags.join(", "), "error small"));
+        out.push(el("p", "Same evidence as above. Murphy corrects only what the evidence supports.", "muted small"));
+      } else out.push(el("p", msg, "muted small"));
+      row.replaceChildren(...out);
+    };
+    row.replaceChildren(note, send);
+    note.focus();
+  };
+  row.append(el("span", "Is this answer right?", "muted small"), yes, no);
+  return row;
+}
+
+for (let d = 0; d <= 120; d += 15) { const o = el("option", `${d} min`); o.value = d; if (d === 60) o.selected = true; $("deadline").append(o); }
+// The Ask panel floats over the page; the round button in the corner opens and closes it.
+function setAsk(open) { $("assistant").hidden = !open; $("ask-open").setAttribute("aria-expanded", open); if (open) $("assistant").focus(); }
+$("ask-open").onclick = () => setAsk($("assistant").hidden);
+$("ask-close").onclick = () => setAsk(false);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("assistant").hidden) { setAsk(false); $("ask-open").focus(); } });
+$("assistant").tabIndex = -1;
+
+if (!flightId) location.href = "/";
+else { ["lead", "deadline"].forEach(id => $(id).addEventListener("change", load)); load(); }
+</script>
+</body>
+</html>

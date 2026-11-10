@@ -1,0 +1,23 @@
+# Data: downloaded or built locally, never committed. See README.md.
+/data/
+
+# Text we may not redistribute (airline contracts of carriage), built locally.
+private/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS and editors
+.DS_Store
+.idea/
+*.swp

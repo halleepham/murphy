@@ -1,0 +1,49 @@
+situation,carrier,method,hit3,first_rank,top,top_score
+cancelled,DL,random,0.1516227387883906,,,
+cancelled,DL,embed,1.0,1.0,Delta RULE 22: REFUNDS — A. Involuntary Refunds (1/2) | Delta RULE 22: REFUNDS — B. Voluntary Refunds (3/3) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4),0.7579
+cancelled,DL,bm25,1.0,2.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (1/4) | 14 CFR 259.5 Customer Service Plan. (2/4),21.3623
+cancelled,WN,random,0.18786389615939314,,,
+cancelled,WN,embed,1.0,2.0,"Southwest 2. Reservations — a. Reservations (5/5) | Southwest 9. Flight Changes, Cancellations, Delays, and Dive (1/2) | Southwest 2. Reservations — a. Reservations (1/5)",0.7629
+cancelled,WN,bm25,1.0,2.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (1/4) | 14 CFR 259.5 Customer Service Plan. (2/4),21.3623
+delay_refund,DL,random,0.1516227387883906,,,
+delay_refund,DL,embed,1.0,1.0,14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (1/4) | Delta RULE 22: REFUNDS — A. Involuntary Refunds (1/2),0.768
+delay_refund,DL,bm25,1.0,1.0,14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (1/4) | 14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7),22.9376
+delay_refund,WN,random,0.18786389615939314,,,
+delay_refund,WN,embed,1.0,1.0,"14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4) | Southwest 9. Flight Changes, Cancellations, Delays, and Dive (1/2) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (1/4)",0.768
+delay_refund,WN,bm25,1.0,1.0,"14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (1/4) | Southwest 9. Flight Changes, Cancellations, Delays, and Dive (1/2)",22.9376
+delay_care,DL,random,0.1516227387883906,,,
+delay_care,DL,embed,1.0,1.0,Delta RULE 19: FLIGHT DELAYS/CANCELLATIONS — B. Delta’s Liab (2/3) | Delta RULE 14: CANCELLATION OF RESERVATIONS (2/2) | Delta RULE 20: DENIED BOARDING COMPENSATION (4/7),0.7692
+delay_care,DL,bm25,1.0,2.0,Delta RULE 20: DENIED BOARDING COMPENSATION (4/7) | Delta RULE 19: FLIGHT DELAYS/CANCELLATIONS — B. Delta’s Liab (2/3) | 14 CFR 260.5 Refunding fees for significantly delayed or los (1/5),23.4423
+delay_care,WN,random,0.0753452519383826,,,
+delay_care,WN,embed,0.0,24.0,Southwest 7. Baggage — g. Limitations of Liability (4/7) | 14 CFR 260.5 Refunding fees for significantly delayed or los (5/5) | Southwest 5. Check-in — b. Check-in Requirements (1/1),0.7042
+delay_care,WN,bm25,1.0,2.0,14 CFR 260.5 Refunding fees for significantly delayed or los (1/5) | 14 CFR 259.9 One-page Passenger Rights Summary. (1/1) | Southwest 7. Baggage — g. Limitations of Liability (2/7),19.6867
+schedule_change,DL,random,0.13357215876261164,,,
+schedule_change,DL,embed,1.0,1.0,"Delta RULE 19: FLIGHT DELAYS/CANCELLATIONS — A. Delta’s Liab (1/2) | 14 CFR 259.8 Notify passengers of known delays, cancellation (2/2) | 14 CFR 259.8 Notify passengers of known delays, cancellation (1/2)",0.7448
+schedule_change,DL,bm25,0.0,8.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | Delta RULE 6: CARRIAGE OF PERSONS WITH DISABILITIES (6/6) | 14 CFR 259.9 One-page Passenger Rights Summary. (1/1),19.8065
+schedule_change,WN,random,0.1043903801982965,,,
+schedule_change,WN,embed,0.0,4.0,"14 CFR 259.8 Notify passengers of known delays, cancellation (2/2) | Southwest 8. International Travel — i. Check-in Times for In (1/1) | 14 CFR 259.8 Notify passengers of known delays, cancellation (1/2)",0.7329
+schedule_change,WN,bm25,0.0,16.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | Southwest 1. Introduction — b. Definitions (6/9) | Southwest 4. Tickets — a. Tickets (2/6),19.8065
+change_myself,DL,random,0.13357215876261164,,,
+change_myself,DL,embed,1.0,2.0,14 CFR 250.5 Amount of denied boarding compensation for pass (3/6) | Delta RULE 21: REROUTING — A General Provisions (1/2) | Delta RULE 19: FLIGHT DELAYS/CANCELLATIONS — A. Delta’s Liab (1/2),0.7353
+change_myself,DL,bm25,0.0,32.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4) | Delta RULE 13: CONFIRMATION OF RESERVATIONS (1/1),20.8546
+change_myself,WN,random,0.17432829442871645,,,
+change_myself,WN,embed,1.0,1.0,"Southwest 3. Fares — a. Application of Fares (1/4) | Southwest 2. Reservations — a. Reservations (3/5) | Southwest 9. Flight Changes, Cancellations, Delays, and Dive (6/8)",0.7536
+change_myself,WN,bm25,0.0,16.0,"Southwest 9. Flight Changes, Cancellations, Delays, and Dive (8/8) | 14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | 14 CFR 260.6 Refunding fare for flights cancelled or signifi (2/4)",20.9194
+missed_connection,DL,random,0.039470198675496726,,,
+missed_connection,DL,embed,1.0,1.0,Delta RULE 19: FLIGHT DELAYS/CANCELLATIONS — A. Delta’s Liab (1/2) | 14 CFR 260.5 Refunding fees for significantly delayed or los (5/5) | Delta RULE 14: CANCELLATION OF RESERVATIONS (2/2),0.7295
+missed_connection,DL,bm25,0.0,15.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | Delta RULE 15: VOLUNTARY STANDBY TRAVEL (1/3) | Delta RULE 8: ACCEPTANCE OF CHILDREN — F) Suspension of Unac (1/1),20.9939
+missed_connection,WN,random,0.04567885509074543,,,
+missed_connection,WN,embed,1.0,1.0,"Southwest 9. Flight Changes, Cancellations, Delays, and Dive (1/2) | Southwest 9. Flight Changes, Cancellations, Delays, and Dive (1/1) | 14 CFR 260.5 Refunding fees for significantly delayed or los (5/5)",0.7188
+missed_connection,WN,bm25,0.0,9.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (7/7) | Southwest 7. Baggage — g. Limitations of Liability (4/7) | Southwest 6. Acceptance of Passengers — c. Carriage of Child (3/3),20.9939
+tarmac,DL,random,0.1516227387883906,,,
+tarmac,DL,embed,1.0,1.0,14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (3/7) | 14 CFR 250.3 Boarding priority rules. (1/1) | 14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (2/7),0.691
+tarmac,DL,bm25,0.0,5.0,14 CFR 260.2 Definitions. (5/6) | Delta RULE 20: DENIED BOARDING COMPENSATION (3/7) | Delta RULE 16: FARES (3/4),21.8499
+tarmac,WN,random,0.1043903801982965,,,
+tarmac,WN,embed,1.0,3.0,Southwest 5. Check-in — b. Check-in Requirements (1/1) | Southwest 8. International Travel — i. Check-in Times for In (1/1) | 14 CFR 259.4 Contingency Plan for Lengthy Tarmac Delays. (3/7),0.7076
+tarmac,WN,bm25,0.0,4.0,Southwest 1. Introduction — b. Definitions (6/9) | 14 CFR 260.2 Definitions. (5/6) | Southwest 2. Reservations — a. Reservations (5/5),28.1338
+bumped,DL,random,0.33390817369660875,,,
+bumped,DL,embed,1.0,1.0,14 CFR 250.6 Exceptions to eligibility for denied boarding c (1/2) | 14 CFR 250.5 Amount of denied boarding compensation for pass (2/6) | 14 CFR 250.5 Amount of denied boarding compensation for pass (1/6),0.8312
+bumped,DL,bm25,1.0,1.0,14 CFR 250.2b Carriers to request volunteers for denied boar (1/2) | Delta RULE 20: DENIED BOARDING COMPENSATION (5/7) | Delta RULE 20: DENIED BOARDING COMPENSATION (1/7),20.1344
+bumped,WN,random,0.27849432763700166,,,
+bumped,WN,embed,1.0,1.0,14 CFR 250.6 Exceptions to eligibility for denied boarding c (1/2) | 14 CFR 250.5 Amount of denied boarding compensation for pass (2/6) | 14 CFR 250.5 Amount of denied boarding compensation for pass (1/6),0.8312
+bumped,WN,bm25,1.0,1.0,"Southwest 9. Flight Changes, Cancellations, Delays, and Dive (3/8) | 14 CFR 250.2b Carriers to request volunteers for denied boar (1/2) | Southwest 9. Flight Changes, Cancellations, Delays, and Dive (8/8)",21.2847

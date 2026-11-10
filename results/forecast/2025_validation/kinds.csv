@@ -1,0 +1,57 @@
+period,model,kind,forecasts,brier
+all,clim_origin,normal,1339196,0.5858834981918335
+all,clim_origin,overlap,26728,1.2056903839111328
+all,clim_origin,no tail,3294,1.3689533472061157
+all,clim_origin,delay blank,11084,0.9370982646942139
+all,clim_global,normal,1339196,0.5873188376426697
+all,clim_global,overlap,26728,1.2208937406539917
+all,clim_global,no tail,3294,1.3771132230758667
+all,clim_global,delay blank,11084,0.94151371717453
+all,uniform,normal,1339196,0.9375
+all,uniform,overlap,26728,0.9375
+all,uniform,no tail,3294,0.9375
+all,uniform,delay blank,11084,0.9375
+all,final_network,normal,1339196,0.538220226764679
+all,final_network,overlap,26728,1.1294364929199219
+all,final_network,no tail,3294,1.0253783464431763
+all,final_network,delay blank,11084,0.6756786704063416
+all,final_clean,normal,1339196,0.5390830039978027
+all,final_clean,overlap,26728,1.134741187095642
+all,final_clean,no tail,3294,1.0431207418441772
+all,final_clean,delay blank,11084,0.6767632961273193
+all,schedule,normal,1339196,0.5764362215995789
+all,schedule,overlap,26728,1.2012802362442017
+all,schedule,no tail,3294,1.3486149311065674
+all,schedule,delay blank,11084,0.9446338415145874
+all,schedule_history,normal,1339196,0.5733066201210022
+all,schedule_history,overlap,26728,1.1889045238494873
+all,schedule_history,no tail,3294,1.337991714477539
+all,schedule_history,delay blank,11084,0.9334094524383545
+jan_aug,clim_origin,normal,890920,0.5944137573242188
+jan_aug,clim_origin,overlap,18714,1.2112882137298584
+jan_aug,clim_origin,no tail,2338,1.3721808195114136
+jan_aug,clim_origin,delay blank,8148,0.9402255415916443
+jan_aug,clim_global,normal,890920,0.5960626602172852
+jan_aug,clim_global,overlap,18714,1.2269059419631958
+jan_aug,clim_global,no tail,2338,1.3796526193618774
+jan_aug,clim_global,delay blank,8148,0.945110559463501
+jan_aug,uniform,normal,890920,0.9375
+jan_aug,uniform,overlap,18714,0.9375
+jan_aug,uniform,no tail,2338,0.9375
+jan_aug,uniform,delay blank,8148,0.9375
+jan_aug,final_network,normal,890920,0.5455228686332703
+jan_aug,final_network,overlap,18714,1.1102441549301147
+jan_aug,final_network,no tail,2338,0.9675148725509644
+jan_aug,final_network,delay blank,8148,0.671922504901886
+jan_aug,final_clean,normal,890920,0.5461058616638184
+jan_aug,final_clean,overlap,18714,1.1135022640228271
+jan_aug,final_clean,no tail,2338,0.9804003238677979
+jan_aug,final_clean,delay blank,8148,0.6723849773406982
+jan_aug,schedule,normal,890920,0.5836585760116577
+jan_aug,schedule,overlap,18714,1.1733393669128418
+jan_aug,schedule,no tail,2338,1.297308087348938
+jan_aug,schedule,delay blank,8148,0.9293501377105713
+jan_aug,schedule_history,normal,890920,0.5802833437919617
+jan_aug,schedule_history,overlap,18714,1.1637517213821411
+jan_aug,schedule_history,no tail,2338,1.2952793836593628
+jan_aug,schedule_history,delay blank,8148,0.9194530248641968

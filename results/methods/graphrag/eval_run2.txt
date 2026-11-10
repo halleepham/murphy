@@ -1,0 +1,161 @@
+
+== 2025-01-10:AA3104:ATL-DFW:1410 at 24 h (example: TAF forecast freezing rain; cancelled); as_of 2025-01-09T19:10Z; BM25 corpus 13373 facts
+-- chance / graph: items 1, hindsight 0, invented [], bad tags [], cited 1, gold 42% hit True, neighbors named []
+   The forecast made 24 hours before departure shows a 42 % chance the flight will be late [p_miss = 42 %]【E1】.
+-- chance / bm25: items 10, hindsight 0, invented [], bad tags [], cited 0, gold 42% hit False, neighbors named []
+   The evidence does not provide a p_miss value for flight 2025‑01‑10:AA3104:ATL‑DFW:1410, so I cannot tell how likely it is to make you late.
+-- chance / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold 42% hit False, neighbors named []
+   The provided evidence does not contain information about the likelihood of a delay for flight AA3104 on 2025‑01‑10.
+-- better / graph: items 5, hindsight 0, invented [], bad tags [], cited 5, gold DL414 hit True, neighbors named []
+   Yes, there are alternatives with a lower chance of being late than your flight’s 42 % p_miss. DL 414 departs at 1124 and has a 16 % p_miss, arriving 174 minutes earlier than AA3104 [E1]. AA 811 departs at 1105 with a 22 % p_miss and arrives 184 minutes earlier [E2]. AA 1276 departs at 1218 with a 22 % p_miss and arrives 115 minutes earlier [E3]. DL 961 departs at 0955 with a 23 % p_miss and arrives 261 minutes earlier [E4]. DL 921 departs at 1345 with a 26 % p_miss and arrives 37 minutes earlier [E5].
+-- better / bm25: items 10, hindsight 0, invented [], bad tags [], cited 0, gold DL414 hit False, neighbors named []
+   The evidence does not include the chance of missing for the original AA3104 flight, so it cannot determine whether any alternative is better.
+-- better / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold DL414 hit False, neighbors named []
+   The provided evidence does not contain information about alternative flights or a comparison of options for the requested trip.
+-- why / graph: items 9, hindsight 0, invented [], bad tags [], cited 1, gold None hit None, neighbors named []
+   The TAF for ATL issued at 2025‑01‑09T17:33Z predicts periods of light snow and freezing rain later on 2025‑01‑10 [​E9].  
+   It shows visibility dropping to 6 SM with –SN, then to 4 SM with FZRASN, and later to 3 SM with FZRAPL [​E9].  
+   These winter precipitation and low‑visibility conditions can cause delays, cancellations, or diversions [​E9].  
+   Thus the flight is at risk because the forecast calls for snow and freezing rain at the origin around the scheduled departure time.
+-- why / bm25: items 10, hindsight 0, invented [], bad tags [], cited 6, gold None hit None, neighbors named []
+   The 24‑hour forecast for AA3104 shows a chance of missing that ranges from 18 % to 34 % across several alternative flights [E1][E3][E6][E8][E9][E10]. Those percentages indicate a notable risk that the flight could be late, cancelled or diverted.
+-- why / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The provided evidence does not contain a forecast or any other information about the conditions on 2025‑01‑10 for the ATL‑DFW route, so it does not explain why this flight might be at risk.
+-- why / graph_no_comm: items 2, hindsight 0, invented [], bad tags [], cited 1, gold None hit None, neighbors named []
+   The TAF for ATL forecasts periods of light snow (‑SN) and freezing rain/sleet (FZRASN, FZRAPL) during the flight window【E2】.  
+   Visibility is expected to drop to 6 SM, then 4 SM, and later to 3 SM as the freezing precipitation occurs【E2】.  
+   These conditions can cause delays, cancellations, or diversions, raising the chance the flight will be late【E2】.
+-- region / graph: items 5, hindsight 0, invented [], bad tags [], cited 3, gold None hit None, neighbors named []
+   Community 0 (CLT, LGA, DCA, BOS) has a mean p_miss of 13% and 1 flight with p_miss ≥ 50% [E1].  
+   Community 1 (DEN, PHX, SEA, LAX) has a mean p_miss of 11% and 1 flight with p_miss ≥ 50% [E2].  
+   Community 3 (ORD, MSP, DTW, BNA) has a mean p_miss of 17% and 1 flight with p_miss ≥ 50% [E4].
+-- region / bm25: items 10, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The evidence does not provide information about how other regions are doing today.
+-- region / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   I’m sorry, but the provided evidence does not include any information about other regions today.
+-- region / graph_no_comm: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   (no evidence without communities: not asked)
+
+== 2025-01-06:WN1385:SDF-MDW:1835 at 24 h (thin evidence: no weather reports at SDF); as_of 2025-01-05T23:35Z; BM25 corpus 16321 facts
+-- chance / graph: items 1, hindsight 0, invented [], bad tags [], cited 1, gold 83% hit True, neighbors named []
+   The forecast made 24 hours before departure shows an 83 % chance the flight will arrive more than 60 minutes late, be cancelled, or be diverted [E1].
+-- chance / bm25: items 10, hindsight 3, invented [], bad tags [], cited 1, gold 83% hit True, neighbors named []
+   The 24‑hour forecast shows an 83 % chance this flight will be late (miss)【E4】.
+-- chance / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold 83% hit False, neighbors named []
+   I don’t have any evidence that addresses the likelihood of this flight arriving late.
+-- better / graph: items 2, hindsight 0, invented [], bad tags [], cited 2, gold WN1119 hit True, neighbors named []
+   Yes, there are better flights. The 0725 WN1119 flight has a lower p_miss of 76% and arrives 665 minutes earlier than your flight [ E1 ]. The 1355 WN954 flight also has a lower p_miss of 80% and arrives 280 minutes earlier [ E2 ].
+-- better / bm25: items 10, hindsight 3, invented [], bad tags [], cited 3, gold WN1119 hit True, neighbors named []
+   Yes, there are alternatives with a lower chance of missing. The original flight has a 83% chance of missing at 24 h [E4]. Flight WN954 at 1355 has an 80% chance of missing at 24 h [E2]. Flight WN1119 at 0725 has a 76% chance of missing at 24 h [E3]. Both alternatives are better than the original.
+-- better / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold WN1119 hit False, neighbors named []
+   The provided evidence does not contain information about alternative flights or options that would be better than the scheduled WN1385 flight.
+-- why / graph: items 8, hindsight 0, invented ['15000'], bad tags [], cited 3, gold None hit None, neighbors named ['ATL', 'BNA']
+   The flight is in a community (3) whose airports often experience linked disruptions [E1]. BNA shows a very high co‑disruption weight (0.854) and its METAR reports overcast skies at 15 000 ft [E2]. ATL also has a strong weight (0.753) and is reporting rain with reduced visibility (6 SM) [E3]. These weather conditions at high‑weight community airports suggest a heightened risk of delay or cancellation for the SDF departure. Therefore the flight is at risk because nearby, strongly linked airports are already seeing adverse weather.
+-- why / bm25: items 10, hindsight 3, invented [], bad tags [], cited 2, gold None hit None, neighbors named []
+   The 24‑hour forecast shows an 83 % chance that the flight will be late, cancelled or diverted [E4]. That probability is very high, indicating strong risk of disruption. The same risk is reflected in the alternative flight’s forecast, which shows an 80 % chance of missing [E2]. Therefore the flight is considered at risk because the model predicts a high likelihood of a problem.
+-- why / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The provided evidence does not contain information about the weather forecast or other conditions for flight WN1385 on 2025‑01‑06, so I cannot explain why this flight might be at risk.
+-- why / graph_no_comm: items 1, hindsight 0, invented [], bad tags [], cited 1, gold None hit None, neighbors named []
+   The provided evidence contains no information about the flight’s delay risk or any weather factors [E1].
+-- region / graph: items 5, hindsight 0, invented [], bad tags [], cited 5, gold None hit None, neighbors named []
+   Community 0 shows a mean p_miss of 27% with 43 flights at 50% or higher [E1].  
+   Community 1 shows a mean p_miss of 13% with 8 flights at 50% or higher [E2].  
+   Community 2 shows a mean p_miss of 17% with 1 flight at 50% or higher [E3].  
+   Community 3 shows a mean p_miss of 31% with 40 flights at 50% or higher [E4].  
+   Community 4 shows a mean p_miss of 18% with 2 flights at 50% or higher [E5].
+-- region / bm25: items 10, hindsight 3, invented ['13', '19', '55'], bad tags [], cited 7, gold None hit None, neighbors named []
+   Flight WN1119 (SDF‑MDW 07:25) was cancelled [E10].  
+   Flight WN4356 (MDW‑SDF 19:30) was cancelled [E9].  
+   Alternative flight WN954 (SDF‑MDW 13:55) has a chance of missing 80% at 24 h and 57% at 6 h [E2][E1].  
+   Alternative flight WN1119 (SDF‑MDW 07:25) has a chance of missing 76% at 24 h [E3].  
+   Other alternatives show high miss chances: WN2831 85% at 24 h [E7] and WN1132 82% at 24 h [E5].
+-- region / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   I’m sorry, the available evidence does not include information about how other regions are doing today.
+-- region / graph_no_comm: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   (no evidence without communities: not asked)
+
+== 2025-01-10:DL1725:ATL-GSP:1935 at 2 h (thin evidence: no alternative at 2 h); as_of 2025-01-10T22:35Z; BM25 corpus 13373 facts
+-- chance / graph: items 1, hindsight 0, invented [], bad tags [], cited 1, gold 97% hit True, neighbors named []
+   The forecast made 2 hours before departure shows a 97 % chance the flight will be late [p_miss = 97%] [E1].
+-- chance / bm25: items 10, hindsight 1, invented [], bad tags [], cited 1, gold 97% hit True, neighbors named []
+   The 2‑hour forecast says the flight has a 97 % chance of missing its schedule (being >60 min late, cancelled or diverted) [E4].
+-- chance / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold 97% hit False, neighbors named []
+   The provided evidence does not contain any information about the weather forecast, delays, or other conditions for flight DL1725 on 2025‑01‑10. Therefore, I cannot assess how likely the flight is to make you late.
+-- better / graph: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   There is no evidence provided about any alternative flights or the probability of delay for the requested flight. Therefore, I cannot determine whether a better flight exists.
+-- better / bm25: items 10, hindsight 1, invented [], bad tags [], cited 4, gold None hit None, neighbors named []
+   Yes, the original flight has a 97% chance of missing at the 2‑hour forecast [ E4 ].  
+   Alternative flights DL3007, DL3095 and WN3297 were known 6 hours before and have missing chances of 62%, 50% and 54% respectively [ E1 ][ E2 ][ E3 ].  
+   Therefore a better flight exists, with the lowest chance of missing being 50% for DL3095 [ E2 ].
+-- better / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The provided evidence does not contain information about alternative flights or whether a better option exists.
+-- why / graph: items 9, hindsight 0, invented [], bad tags [], cited 2, gold None hit None, neighbors named []
+   The forecast TAF for ATL shows periods of freezing rain, mist and low ceilings, with visibility dropping to 2 SM and ceilings as low as 008 FT AGL【E9】.  
+   The current METAR at ATL reports freezing rain, mist, visibility only 2 1/2 SM, temperature 32 °F and gusts to 25 kt【E1】.  
+   Freezing rain and reduced visibility can cause runway contamination and delay take‑off clearance.  
+   These conditions increase the chance the flight will be late, cancelled or diverted.
+-- why / bm25: items 10, hindsight 1, invented [], bad tags [], cited 4, gold None hit None, neighbors named []
+   The 2‑hour forecast shows a 97 % chance the flight will be late, cancelled or diverted [E4]. Earlier forecasts already gave a 70 % chance at 6 h and 15 % at 24 h, showing the risk has risen sharply [E4]. The alternative flights listed also have high miss chances (50‑62 %) [E1][E2][E3]. Hence this flight is at high risk of not arriving on time.
+-- why / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The provided evidence does not contain any forecast or weather information for the ATL‑GSP route on 2025‑01‑10, so I cannot determine why this flight might be at risk.
+-- why / graph_no_comm: items 2, hindsight 0, invented ['4000', '5000'], bad tags [], cited 2, gold None hit None, neighbors named []
+   The METAR at ATL shows freezing rain, mist and a ceiling at 5 000 ft with visibility only 2 ½ SM [E1].  
+   The TAF for ATL forecasts continued freezing rain, low ceilings (as low as 4 000 ft) and periods of reduced visibility [E2].  
+   Freezing rain and low visibility can cause runway contamination and delays.  
+   These conditions increase the chance the flight will be late, cancelled or diverted.  
+   Therefore the flight is at risk because of adverse winter weather at the departure airport.
+-- region / graph: items 5, hindsight 0, invented [], bad tags [], cited 4, gold None hit None, neighbors named []
+   Community 0 shows a mean p_miss of 24% with 74 flights at 50% or higher [E1].  
+   Community 1 shows a mean p_miss of 13% with 23 flights at 50% or higher [E2].  
+   Community 2 shows a mean p_miss of 40% with 89 flights at 50% or higher [E3].  
+   Community 3 shows a mean p_miss of 35% with 74 flights at 50% or higher [E4].
+-- region / bm25: items 10, hindsight 1, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The evidence does not include information about how other regions are doing today.
+-- region / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   I’m sorry, the provided evidence does not include information about other regions today.
+-- region / graph_no_comm: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   (no evidence without communities: not asked)
+
+== 2025-01-12:WN1383:MDW-RSW:1900 at 24 h (calm day, low risk); as_of 2025-01-12T01:00Z; BM25 corpus 7279 facts
+-- chance / graph: items 1, hindsight 0, invented [], bad tags [], cited 1, gold 15% hit True, neighbors named []
+   The forecast made 24 hours before departure shows a 15 % chance the flight will be late [p_miss = 15%]【E1】.
+-- chance / bm25: items 10, hindsight 4, invented [], bad tags [], cited 1, gold 15% hit True, neighbors named []
+   The 24‑hour forecast gives a 15 % chance that this flight will be late (arrive >60 min late, be cancelled or diverted) [E4].
+-- chance / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold 15% hit False, neighbors named []
+   The provided evidence does not contain information about the forecast or conditions for flight WN1383 on 2025‑01‑12, so I cannot assess how likely it is to make you late.
+-- better / graph: items 3, hindsight 0, invented [], bad tags [], cited 3, gold WN1351 hit False, neighbors named []
+   Yes, there are alternatives with a lower chance of being late than your flight (15%) — the 1010 am and 1350 pm options each have a 10% chance [E1][E2]. They also are scheduled to arrive earlier (525 min and 310 min ahead) [E1][E2]. The 0605 am option arrives even earlier (765 min ahead) but its late chance is 12% [E3]. All three alternatives improve on both arrival time and on‑time probability.
+-- better / bm25: items 10, hindsight 3, invented [], bad tags [], cited 4, gold WN1351 hit True, neighbors named []
+   The original flight WN1383 at 1900 has a 15% chance of missing at 24 h [E4].  
+   Alternative flight WN813 at 0605 has a 12% chance of missing at 24 h [E1].  
+   Alternative flight WN1351 at 1010 has a 10% chance of missing at 24 h [E2].  
+   Alternative flight WN2378 at 1350 also has a 10% chance of missing at 24 h [E3].  
+   These alternatives have lower miss probabilities than the original flight.
+-- better / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold WN1351 hit False, neighbors named []
+   The provided evidence does not contain information about any alternative flights.
+-- why / graph: items 8, hindsight 0, invented [], bad tags [], cited 2, gold None hit None, neighbors named []
+   The MDW TAF issued before the flight shows periods of light snow and possible freezing drizzle with visibility down to 1 ½ SM and 2 SM later in the day【E8】.  
+   The current MDW METAR already reports temperatures below freezing (M01/M07)【E1】.  
+   These conditions can cause runway contamination and reduced visibility, which raise the chance of a delay, cancellation, or diversion.
+-- why / bm25: items 10, hindsight 4, invented ['50'], bad tags [], cited 4, gold None hit None, neighbors named []
+   The forecast 24 h before departure gave this flight a 15 % chance of missing its schedule [E4]. Six hours before departure the chance rose to 17 % [E4]. Alternative flights at the same time have lower missing chances, such as 12 % for a 06:05 alternative and 10 % for 10:10 and 13:50 alternatives [E1][E2][E3]. Because its probability of being late, cancelled or diverted is higher than the available alternatives, the flight is considered at risk.
+-- why / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The provided evidence does not contain information about the weather forecast or other conditions for flight WN1383 on 2025‑01‑12, so I cannot explain why this flight might be at risk.
+-- why / graph_no_comm: items 2, hindsight 0, invented [], bad tags [], cited 2, gold None hit None, neighbors named []
+   The TAF for MDW calls for periods of light snow with visibility down to 1 1/2 SM and a ceiling as low as OVC007 [ E2 ]. It also forecasts a later period of freezing drizzle snow with visibility only 2 SM and a ceiling OVC008 [ E2 ]. The METAR shows temperatures below freezing (M01/M07) [ E1 ]. These conditions can cause delays, cancellations, or diversions. Therefore the flight is at risk of being late, cancelled, or diverted.
+-- region / graph: items 5, hindsight 0, invented [], bad tags [], cited 5, gold None hit None, neighbors named []
+   Community 0 is seeing a mean p_miss of 12% with 0 flights at 50% or higher [E1].  
+   Community 1 has a mean p_miss of 8% and 3 flights at 50% or higher [E2].  
+   Community 2 shows a mean p_miss of 10% and 0 flights at 50% or higher [E3].  
+   Community 3 reports a mean p_miss of 17% with 1 flight at 50% or higher [E4].  
+   Community 4 has a mean p_miss of 13% and 0 flights at 50% or higher [E5].
+-- region / bm25: items 10, hindsight 6, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   The evidence does not provide information about how other regions are doing today.
+-- region / none: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   I’m sorry, but the provided evidence does not contain information about other regions today.
+-- region / graph_no_comm: items 0, hindsight 0, invented [], bad tags [], cited 0, gold None hit None, neighbors named []
+   (no evidence without communities: not asked)
+
+== 2025-01-10:XX9999:ATL-DFW:1410: not in the graph, LLM not called
+
+wrote 57 rows to data/graphrag/eval.jsonl

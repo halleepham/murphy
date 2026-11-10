@@ -1,0 +1,30 @@
+# Python 3.12. Pinned versions, tested on macOS x86_64 with CPython 3.12.
+# torch 2.2.2 needs numpy<2, which caps pyarrow at 25.
+#
+#   data       pandas, pyarrow, duckdb (Parquet and as-of queries)
+#   models     scikit-learn (baselines, gradient boosting)
+#   graph ML   torch, torch-geometric (GCN)
+#   graphs     networkx (communities), neo4j (knowledge graph)
+#   retrieval  sentence-transformers, rank-bm25, pypdf (policy text)
+#   app        fastapi, uvicorn, pydantic, httpx (LLM calls over HTTP)
+#   other      python-dotenv (credentials from .env), pytest
+
+neo4j==6.4.1
+pytest==9.2.0
+python-dotenv==1.2.4
+duckdb==2.0.0
+fastapi==0.162.0
+httpx==0.28.1
+networkx==3.7
+numpy==1.26.4
+pandas==3.0.6
+pyarrow==25.0.0  # 26 needs numpy>=2; torch 2.2.2 needs numpy<2
+pydantic==2.14.2
+pypdf==7.0.0
+rank-bm25==0.2.2
+scikit-learn==1.9.1
+sentence-transformers==5.7.0
+torch==2.2.2
+torch-geometric==2.8.1
+transformers==4.57.6
+uvicorn==0.54.0

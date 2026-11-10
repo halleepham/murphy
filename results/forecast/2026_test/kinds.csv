@@ -1,0 +1,29 @@
+period,model,kind,forecasts,brier
+all,clim_origin,normal,922058,0.5934516191482544
+all,clim_origin,overlap,22416,1.1776617765426636
+all,clim_origin,no tail,3552,1.3375154733657837
+all,clim_origin,delay blank,11604,0.9717047810554504
+all,clim_global,normal,922058,0.5957056283950806
+all,clim_global,overlap,22416,1.1962488889694214
+all,clim_global,no tail,3552,1.3485541343688965
+all,clim_global,delay blank,11604,0.9807455539703369
+all,uniform,normal,922058,0.9375
+all,uniform,overlap,22416,0.9375
+all,uniform,no tail,3552,0.9375
+all,uniform,delay blank,11604,0.9375
+all,final_network,normal,922058,0.5423001050949097
+all,final_network,overlap,22416,1.0812828540802002
+all,final_network,no tail,3552,0.7988842129707336
+all,final_network,delay blank,11604,0.6551175117492676
+all,final_clean,normal,922058,0.5427218675613403
+all,final_clean,overlap,22416,1.087878704071045
+all,final_clean,no tail,3552,0.8375864028930664
+all,final_clean,delay blank,11604,0.659930944442749
+all,schedule,normal,922058,0.5810839533805847
+all,schedule,overlap,22416,1.166114091873169
+all,schedule,no tail,3552,1.3335990905761719
+all,schedule,delay blank,11604,0.9842963218688965
+all,schedule_history,normal,922058,0.5773265957832336
+all,schedule_history,overlap,22416,1.1483160257339478
+all,schedule_history,no tail,3552,1.3171149492263794
+all,schedule_history,delay blank,11604,0.9680926203727722

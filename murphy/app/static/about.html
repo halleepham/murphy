@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Murphy · about</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar"><div class="inner">
+  <a class="brand" href="/">Murphy</a>
+  <nav><a href="/">Check a flight</a><a href="/about" class="on">About</a></nav>
+</div></header>
+
+<main>
+  <div class="about-head">
+    <h1>About Murphy</h1>
+    <p class="muted">A project by Hallee Pham.</p>
+  </div>
+
+  <section class="card about-wide">
+    <h2>What Murphy does</h2>
+    <p style="margin:0">You enter a flight and how late you can afford to arrive. Murphy gives the chance you make it, whether to keep the flight, and better flights if there are any, with the evidence behind each answer.</p>
+  </section>
+
+  <section class="card about-wide">
+    <h2>Why "Murphy"</h2>
+      <div class="story">
+    <p class="story-lead">Two Murphys, one idea.</p>
+    <div class="story-pair">
+      <section>
+        <h3>The first Murphy expected things to go wrong.</h3>
+        <p>Edward A. Murphy Jr. was an American aerospace engineer. In 1949 he worked on rocket-sled tests at Edwards Air Force Base, and his name stuck to a rule every traveler has lived through: <em>anything that can go wrong, will go wrong.</em></p>
+      </section>
+      <section>
+        <h3>The second Murphy asked what makes a forecast good.</h3>
+        <p>Allan H. Murphy was an American meteorologist and statistician. He separated a forecast's <strong>quality</strong>, how closely it matches what happens, from its <strong>value</strong>, how much it helps someone make a better decision.</p>
+      </section>
+    </div>
+    <p><strong>This Murphy does both.</strong> Things go wrong, so it forecasts what might go wrong with your flight. Then it holds itself to the second Murphy's standard: it shows how reliable its past forecasts have been, and it turns each forecast into a decision you can act on, to keep your flight or change it.</p>
+  </div>
+
+  </section>
+
+  <section class="card about-wide">
+    <h2>The problem</h2>
+    <div class="about-cols">
+      <div>
+        <h3>Why it matters</h3>
+        <ul>
+          <li>A delay is an inconvenience; a missed connection, wedding or meeting is a real cost.</li>
+          <li>Travelers find out late, after the best rebooking options are gone.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What is missing</h3>
+        <ul>
+          <li>Delay predictions give a number, but not how much to trust it.</li>
+          <li>A forecast that sounds confident when it is guessing can lead to the wrong decision.</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin:12px 0 0"><strong>Goal:</strong> help travelers with a deadline decide whether to keep or change their flight, and show the evidence behind each recommendation.</p>
+  </section>
+
+  <div class="about-grid two">
+    <section class="card">
+      <h2>Data</h2>
+      <!-- Counts: flight legs, 1,123,438 ASOS + 374,113 TAF, 2026 forecasts (scored once). -->
+      <div class="stats">
+        <div><b>26.3M</b><span>US flight legs, Jan 2023 – Aug 2026</span></div>
+        <div><b>1.5M</b><span>weather reports and forecasts</span></div>
+        <div><b>1.44M</b><span>forecasts scored on 2026</span></div>
+      </div>
+      <ul>
+        <li><strong>Flights:</strong> <a href="https://www.transtats.bts.gov/DatabaseInfo.asp?QO_VQ=EFD">BTS On-Time Performance</a>, marketing carrier table. American, Delta, United, Southwest, Alaska, JetBlue, Frontier and their regional partners.</li>
+        <li><strong>Weather:</strong> <a href="https://mesonet.agron.iastate.edu/request/download.phtml">Iowa Environmental Mesonet</a> ASOS observations and TAF forecasts as issued, at the 30 busiest airports.</li>
+        <li><strong>Fares:</strong> <a href="https://www.transtats.bts.gov/DatabaseInfo.asp?QO_VQ=EFI">BTS DB1B Market</a>, 2025 Q2: what people paid.</li>
+        <li><strong>Rules:</strong> 14 CFR parts <a href="https://www.ecfr.gov/current/title-14/part-250">250</a>, <a href="https://www.ecfr.gov/current/title-14/part-259">259</a> and <a href="https://www.ecfr.gov/current/title-14/part-260">260</a>, and the <a href="https://www.delta.com/us/en/legal/contract-of-carriage-dgr">Delta</a> and <a href="https://www.southwest.com/swa-resources/pdfs/corporate-commitments/contract-of-carriage.pdf">Southwest</a> contracts of carriage.</li>
+        <li><strong>Split:</strong> train on 2023–24, tune on 2025, test on Jan–Aug 2026, sealed until the end and scored once.</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h2>How it works</h2>
+      <ul>
+        <li><strong>Process:</strong> flights and weather in Parquet and DuckDB. Every input is limited to what was known when the forecast was made.</li>
+        <li><strong>Calculate:</strong> a gradient-boosting model (84 inputs) gives the chance at 24, 6 and 2 hours before departure. Airport communities (Louvain) and a graph neural network (GCN) add network inputs. Code, not the AI, decides keep, too uncertain or consider changing.</li>
+        <li><strong>Retrieve:</strong> a Neo4j knowledge graph links flights, airports and weather; retrieval finds similar past days and the airline's rules.</li>
+        <li><strong>Explain:</strong> a language model (gpt-oss-120b on Groq) only explains the evidence, and a check flags any number it states that is not in the evidence.</li>
+        <li><strong>Tested:</strong> every method against a simpler baseline, with 95% intervals resampled by day.</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="card about-wide" style="margin-top:24px">
+    <h2>What we found</h2>
+    <!-- Sources: results/RESULTS.md. -->
+    <ul>
+      <li><strong>Better than the usual guess.</strong> On 2026, a year it never saw, the forecast beats the usual-for-the-airport rate at every lead time (Brier score 0.541 vs. 0.614 two hours out, 1,439,445 forecasts).</li>
+      <li><strong>Honest about itself.</strong> Close when it says keep (8.7% predicted to miss, 8.9% did); low on risky flights (74.8% vs. 81.8%), and the app says so. From 40% to 60% risk it says too uncertain instead of guessing.</li>
+      <li><strong>Advice is rare and earned.</strong> It keeps 96% of trips. At 60% risk and up, a change rescued 2,235 trips against 712 needless ones.</li>
+      <li><strong>Hindsight kept out.</strong> Graph evidence is filtered by time; plain keyword search (BM25) pulled in later outcomes in 12 of 16 evidence sets.</li>
+      <li><strong>Network:</strong> the GCN finds the airports that go bad next, but from each airport's own state, not its links.</li>
+    </ul>
+    <table class="about-table">
+      <thead><tr><th>Compared with something simpler</th><th>Murphy</th><th>Simpler</th></tr></thead>
+      <tbody>
+        <tr><td>Change advice: net trips saved per 1,000 (60-minute deadline, 2026)</td><td>1.44</td><td>0.19, traveler's rule of thumb</td></tr>
+        <tr><td>Similar past days: error in share of late flights</td><td>8.2 points</td><td>9.1, month average</td></tr>
+        <tr><td>Rules: right passage in the top 3 (16 questions)</td><td>14</td><td>8, BM25</td></tr>
+        <tr><td>Ask answers with the key fact (7 checked)</td><td>6</td><td>5 BM25, 0 with no retrieval</td></tr>
+        <tr><td>Airports that go bad next, picked by the GCN</td><td>45%</td><td>30%, today's order</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="about-grid two">
+    <section class="card">
+      <h2>Limitations</h2>
+  <!-- Kept word for word in step with LIMITS in murphy/app/server.py; a test checks it. -->
+  <ul id="limits">
+    <li>Replay of 2025 only. Forecasts exist for sampled flights at 24, 6 and 2 hours before departure.</li>
+    <li>Murphy can rarely warn about flights later swapped or cancelled.</li>
+    <li>Past schedules show that a flight existed, not that it had a seat.</li>
+    <li>Estimated costs are what people typically paid, not a quote. A last-minute seat may cost more.</li>
+    <li>Questions in the Ask panel cover flights from 4 to 12 January 2025 only, at a 60-minute deadline.</li>
+  </ul>
+  <ul>
+    <li>No live lookup of upcoming flights, and no live fares: free access to them ended in July 2026.</li>
+    <li>Weather covers the 30 busiest airports only.</li>
+    <li>Ask answers were scored on 4 flights; Groq's free daily limit stopped a larger test.</li>
+    <li>No real users yet, so whether the evidence changes decisions is untested.</li>
+    <li>The 2026 test covers January to August: no fall or holiday travel.</li>
+  </ul>
+    </section>
+    <section class="card">
+      <h2>Next steps</h2>
+      <ul>
+        <li>Fall and holiday travel, which the 2026 test did not cover.</li>
+        <li>Connecting flights, where two legs can share one storm.</li>
+        <li>A study with real travelers.</li>
+      </ul>
+    </section>
+  </div>
+
+  <p style="margin-top:32px"><a class="btn primary" href="/">Check a flight</a></p>
+</main>
+<footer class="footer"><div class="inner"><span>Murphy · by Hallee Pham</span><span>A replay of 2025 US flights</span><a href="/about">About and limits</a></div></footer>
+</body>
+</html>
