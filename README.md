@@ -9,8 +9,8 @@ evidence, its source and its uncertainty.
 
 CS 5542 Big Data Analytics & Applications, Fall 2026 · Hallee Pham (solo project)
 
-[Poster (PDF)](poster/murphy-poster.pdf) · [Poster on Google Drive](POSTER_DRIVE_LINK) ·
-[Demo video](VIDEO_DRIVE_LINK) · [Results](results/RESULTS.md)
+[Poster (PDF)](poster/murphy-poster.pdf) · [Poster on Google Drive](https://drive.google.com/file/d/1nC_FDjkYL0IisXhSdKB1tmfSJ8-ja22d/view?usp=sharing) ·
+[Demo video](https://drive.google.com/file/d/1bOkDsskHgpEqFmFvzVy6gJgikR1fTWhx/view?usp=drive_link) · [Results](results/RESULTS.md)
 
 ![A trip in Murphy: the chance of making the deadline, the advice, and how the chance changes with the deadline](docs/images/trip.png)
 
@@ -24,8 +24,8 @@ frozen, and scored once. That's 1.44 million forecasts on 479,815 flights.
 - **The forecast beats every simpler baseline.** Its multiclass Brier score is
   0.5659, against 0.6145 for airport climatology and 0.6024 for a
   schedule-only model.
-- **Its risk levels hold.** Of the flights it put at "60% and up" to miss a
-  60-minute deadline, 81.8% missed.
+- **Its risk levels hold, and run slightly low.** Of the flights it put at
+  "60% and up" to miss a 60-minute deadline, 81.8% missed (74.8% predicted).
 - **The advice helps.** It gives 1.44 net trips rescued per 1,000 trips,
   against 0.19 for a traveler's rule of thumb (switch if the inbound plane is already too late).
 - **All 13 pre-set pass/fail tests pass.**
@@ -56,7 +56,7 @@ Each part has one job. The data system processes, the models calculate,
 retrieval finds evidence, and the LLM only explains. **No number comes from
 the LLM.**
 
-![Murphy's pipeline: prepare the data, forecast and recommend, then explain and decide](docs/images/murphy_pipeline_diagram.png)
+![Murphy's pipeline: prepare the data, forecast and recommend, then explain and decide](docs/images/pipeline_diagram.png)
 
 ## Quick start
 
